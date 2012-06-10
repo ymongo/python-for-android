@@ -455,6 +455,13 @@ public class SDLSurfaceView extends SurfaceView implements SurfaceHolder.Callbac
         wakeLock.acquire();
     }
 
+    public void onNewIntent(Intent newintent) {
+	    // accept the new intent
+	    Log.w(TAG, "GOT NEW INTENT..........................");
+	    mActivity.setIntent(newintent);
+    }
+
+
 	public void onDestroy() {
 		Log.w(TAG, "onDestroy() called");
 		synchronized (this) {

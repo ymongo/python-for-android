@@ -258,6 +258,16 @@ public class PythonActivity extends Activity implements Runnable {
     }
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        Log.i("python", "GOT NEW INTENT !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        super.onNewIntent(intent);
+
+        if (mView != null) {
+            mView.onNewIntent(intent);
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         _isPaused = false;
