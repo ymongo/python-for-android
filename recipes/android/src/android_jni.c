@@ -263,28 +263,28 @@ void android_action_send(char *mimeType, char *filename, char *subject, char *te
         cls = (*env)->FindClass(env, "org/renpy/android/Action");
         aassert(cls);
         mid = (*env)->GetStaticMethodID(env, cls, "send",
-			"(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+                        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
         aassert(mid);
     }
 
-	jstring j_mimeType = (*env)->NewStringUTF(env, mimeType);
-	jstring j_filename = NULL;
-	jstring j_subject = NULL;
-	jstring j_text = NULL;
-	jstring j_chooser_title = NULL;
-	if ( filename != NULL )
-		j_filename = (*env)->NewStringUTF(env, filename);
-	if ( subject != NULL )
-		j_subject = (*env)->NewStringUTF(env, subject);
-	if ( text != NULL )
-		j_text = (*env)->NewStringUTF(env, text);
-	if ( chooser_title != NULL )
-		j_chooser_title = (*env)->NewStringUTF(env, text);
+        jstring j_mimeType = (*env)->NewStringUTF(env, mimeType);
+        jstring j_filename = NULL;
+        jstring j_subject = NULL;
+        jstring j_text = NULL;
+        jstring j_chooser_title = NULL;
+        if ( filename != NULL )
+                j_filename = (*env)->NewStringUTF(env, filename);
+        if ( subject != NULL )
+                j_subject = (*env)->NewStringUTF(env, subject);
+        if ( text != NULL )
+                j_text = (*env)->NewStringUTF(env, text);
+        if ( chooser_title != NULL )
+                j_chooser_title = (*env)->NewStringUTF(env, text);
 
     (*env)->CallStaticVoidMethod(
         env, cls, mid,
-		j_mimeType, j_filename, j_subject, j_text,
-		j_chooser_title);
+                j_mimeType, j_filename, j_subject, j_text,
+                j_chooser_title);
 }
 
 void android_open_url(char *url) {
@@ -311,3 +311,32 @@ void android_open_url(char *url) {
     POP_FRAME;
 }
 
+char** bluetooth_active_connections() {
+    static JNIEnv *env = NULL;
+    static jclass *cls = NULL;
+    static jmethodID mid = NULL;
+    jobjectArray connections;
+    char** result;
+    int i;
+
+    if (env == NULL) {
+        env = SDL_ANDROID_GetJNIEnv();
+        aassert(env);
+        cls = (*env)->FindClass(env, "org/renpy/android/Bluetooth");
+        aassert(cls);
+        mid = (*env)->GetStaticMethodID(env, cls, "activeConnections", "()Ljava/lang/Array;");
+        aassert(mid);
+    }
+
+    (*env)->CallStaticVoidMethod(
+        env, cls, mid,
+        (*env)->NewObjectArray(env, connections)
+        );
+
+    result = (char**) malloc(sizeof(char*) * connections.size);
+
+    for (i=0; i < connections.size; i++)
+        result[i] = (*env)->GetStringUTFChars(env, connections[i], 0);
+
+    return result;
+}

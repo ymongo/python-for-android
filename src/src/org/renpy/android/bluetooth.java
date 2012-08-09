@@ -33,7 +33,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 
@@ -62,11 +64,11 @@ public class Bluetooth {
     //});
   //}
 
-  public Map<String, String> activeConnections() {
-    Map<String, String> out = new HashMap<String, String>();
+  static public List<String> activeConnections() {
+    List<String> out = new ArrayList<String>();
     for (Map.Entry<String, BluetoothConnection> entry : connections.entrySet()) {
       if (entry.getValue().isConnected()) {
-        out.put(entry.getKey(), entry.getValue().getRemoteBluetoothAddress());
+        out.add(entry.getKey());
       }
     }
 
