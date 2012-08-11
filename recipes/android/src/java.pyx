@@ -70,10 +70,13 @@ cdef class JavaClass(object):
 
     cdef void resolve_methods(self):
         # search all the JavaMethod within our class.
-        for name, value in self.__dict__.iteritems():
+        cdef JavaMethod jm
+        for name in dir(self.__class__):
+            value = getattr(self.__class__, name)
             if not isinstance(value, JavaMethod):
                 continue
-            value.resolve_method(self, name)
+            jm = value
+            jm.resolve_method(self, name)
 
     cdef int populate_args(self, list definition_args, jvalue *j_args, args):
         cdef JavaObject j_object
@@ -137,7 +140,12 @@ cdef class JavaMethod(object):
         self.j_env = jc.j_env
         self.j_cls = jc.j_cls
         self.j_self = jc.j_self
-        self.j_method = self.j_env[0].GetMethodID(self.j_env, self.j_cls, <char *>name, self.definition)
+        if self.is_static:
+            self.j_method = self.j_env[0].GetStaticMethodID(
+                    self.j_env, self.j_cls, <char *>name, self.definition)
+        else:
+            self.j_method = self.j_env[0].GetMethodID(
+                    self.j_env, self.j_cls, <char *>name, self.definition)
         assert(self.j_method != NULL)
 
     cdef void parse_definition(self, definition):
@@ -203,36 +211,36 @@ cdef class JavaMethod(object):
             ret = True if j_boolean else False
         elif r == 'B':
             j_byte = self.j_env[0].CallByteMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <char>j_byte
         elif r == 'C':
             j_char = self.j_env[0].CallCharMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <char>j_char
         elif r == 'S':
             j_short = self.j_env[0].CallShortMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <short>j_short
         elif r == 'I':
             j_int = self.j_env[0].CallIntMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <int>j_int
         elif r == 'J':
             j_long = self.j_env[0].CallLongMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <long>j_long
         elif r == 'F':
             j_float = self.j_env[0].CallFloatMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <float>j_float
         elif r == 'D':
             j_double = self.j_env[0].CallDoubleMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <double>j_double
         elif r == 'L':
             # accept only string for the moment
             j_object = self.j_env[0].CallObjectMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             if r == 'Ljava/lang/String;':
                 c_str = <char *>self.j_env[0].GetStringUTFChars(self.j_env, j_object, NULL)
                 py_str = <bytes>c_str
@@ -272,6 +280,14 @@ cdef class JavaMethod(object):
         # return type of the java method
         r = self.definition_return[0]
 
+        '''
+        print 'TYPE', r
+        print 'jenv', 'ok' if self.j_env else 'nop'
+        print 'jcls', 'ok' if self.j_cls else 'nop'
+        print 'jmethods', 'ok' if self.j_method else 'nop'
+        print 'jargs', 'ok' if j_args else 'nop'
+        '''
+
         # now call the java method
         if r == 'V':
             self.j_env[0].CallStaticVoidMethodA(self.j_env, self.j_cls, self.j_method, j_args)
@@ -280,36 +296,36 @@ cdef class JavaMethod(object):
             ret = True if j_boolean else False
         elif r == 'B':
             j_byte = self.j_env[0].CallStaticByteMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <char>j_byte
         elif r == 'C':
             j_char = self.j_env[0].CallStaticCharMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <char>j_char
         elif r == 'S':
             j_short = self.j_env[0].CallStaticShortMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <short>j_short
         elif r == 'I':
             j_int = self.j_env[0].CallStaticIntMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <int>j_int
         elif r == 'J':
             j_long = self.j_env[0].CallStaticLongMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <long>j_long
         elif r == 'F':
             j_float = self.j_env[0].CallStaticFloatMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <float>j_float
         elif r == 'D':
             j_double = self.j_env[0].CallStaticDoubleMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             ret = <double>j_double
         elif r == 'L':
             # accept only string for the moment
             j_object = self.j_env[0].CallStaticObjectMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            self.error_if_null(ret)
+            #self.error_if_null(ret)
             if r == 'Ljava/lang/String;':
                 c_str = <char *>self.j_env[0].GetStringUTFChars(self.j_env, j_object, NULL)
                 py_str = <bytes>c_str
