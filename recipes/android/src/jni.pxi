@@ -41,8 +41,6 @@ cdef extern from "jni.h":
         const_char* signature
         void*       fnPtr
 
-    ctypedef const_JNINativeMethod "const JNINativeMethod"
-
     ctypedef union jvalue:
         jboolean    z
         jbyte       b
@@ -400,4 +398,3 @@ cdef extern from "jni.h":
         pass
 
 cdef extern JNIEnv *SDL_ANDROID_GetJNIEnv()
-
