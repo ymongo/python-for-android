@@ -99,7 +99,7 @@ cdef class JavaClass(object):
             elif argtype == 'D':
                 j_args[index].d = py_arg
             elif argtype[0] == 'L':
-                if argtype == 'Ljava/lang/String;':
+                if argtype == 'Ljava/lang/String':
                     if isinstance(py_arg, basestring):
                         j_args[index].l = self.j_env[0].NewStringUTF(self.j_env, <char *><bytes>py_arg)
                     else:
