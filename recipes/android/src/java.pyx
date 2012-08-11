@@ -62,10 +62,10 @@ cdef class JavaClass(object):
 
     cdef void resolve_class(self):
         # search the Java class, and bind to our object
-        assert(hasattr(self, 'j_classname'))
+        assert(hasattr(self, '__javaclass__'))
         self.j_env = SDL_ANDROID_GetJNIEnv()
         assert(self.j_env != NULL)
-        self.j_cls = self.j_env[0].FindClass(self.j_env, <char *><bytes>self.j_classname)
+        self.j_cls = self.j_env[0].FindClass(self.j_env, <char *><bytes>self.__javaclass__)
         assert(self.j_cls != NULL)
 
     cdef void resolve_methods(self):
