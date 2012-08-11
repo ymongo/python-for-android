@@ -1,6 +1,4 @@
-# probably not enought
-cdef extern from "jni.h":
-    JNIEnv *SDL_ANDROID_GetJNIEnv(void)
+include "jni.pxi"
 
 # Android-specific python services.
 
@@ -254,27 +252,43 @@ webbrowser.register('android', AndroidBrowser, None, -1)
 # -------------------------------------------------------------------
 # Bluetooth
 cdef class Bluetooth(object):
-    cdef JNIEnv *j_env = SDL_ANDROID_GetJNIEnv()
-    cdef jclass *j_class = *j_env->FindClass(j_env,
+
+    cdef JNIEnv *j_env
+    cdef jclass j_class
+    cdef jobject j_self
+
+    def __cinit__(self):
+        self.j_env = SDL_ANDROID_GetJNIEnv()
+        self.j_class = self.j_env.FindClass(self.j_env,
             "org/renpy/android/BluetoothConnection")
 
-    cdef __init__(self):
-        constructor = j_env->GetMethod(j_env, j_class, "<init>", "(C)V")
-        self._jself = j_env->NewObject(j_env, j_class, constructor)
+    def __init__(self):
+        # XXX was GetMethod, but it's not existing in the jni.h?
+        cdef jmethodID constructor = self.j_env.GetMethodID(self.j_env, self.j_class, "<init>", "(C)V")
+        self.j_self = self.j_env.NewObject(self.j_env, self.j_class, constructor)
 
-    cdef void setUUID(self, uuid):
-        j_method = j_env->GetMethod(j_env, j_class,
+    cdef void setUUID(self, bytes uuid):
+        cdef jmethodID j_method = self.j_env.GetMethodID(self.j_env, self.j_class,
                 "setUUID",
                 "(Ljava/lang/String;)V")
 
-        j_env->CallVoidMethod(
-                j_env, j_class, self._jself, j_method,
-                j_env->NewStringUTF(uuid))
+        self.j_env.CallVoidMethod(
+                self.j_env, self.j_class, self.j_self, j_method,
+                self.j_env.NewStringUTF(self.j_env, <const_char *><char *>uuid))
 
     cdef getUUID(self):
-        j_method = j_env->GetMethod(j_env, j_class,
+        cdef jmethodID j_method = self.j_env.GetMethodID(self.j_env, self.j_class,
                 "getUUID",
                 "()Ljava/lang/String;")
 
-        return j_env->GetStringUTFChars(j_env->CallStringMethod(
-            j_env, j_class, self._jself, j_method))
+        # CallStringMethod doesn't exist... but CallByteMethod ? Object ? Char ?
+        #return self.j_env.GetStringUTFChars(self.j_env.CallStringMethod(
+        #    self.j_env, self.j_class, self.j_self, j_method))
+        cdef jstring result = <jstring>self.j_env.CallObjectMethod(
+            self.j_env, self.j_class, self.j_self, j_method)
+        cdef const_char *uuid_str = self.j_env.GetStringUTFChars(self.j_env, result, NULL)
+
+        # memleak!!!!!! maybe even memory corruption, depending if the
+        # GetStringUTFChars is returning a full copy, or just a ref.
+        return <bytes><char *>uuid_str
+
