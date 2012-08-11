@@ -256,10 +256,6 @@ cdef class JavaMethod(object):
         else:
             raise Exception('Invalid return definition?')
 
-        # free args
-        if j_args != NULL:
-            free(j_args)
-
         return ret
 
     cdef call_staticmethod(self, jvalue *j_args):
@@ -340,10 +336,6 @@ cdef class JavaMethod(object):
             raise NotImplementedError("Array arguments not implemented")
         else:
             raise Exception('Invalid return definition?')
-
-        # free args
-        if j_args != NULL:
-            free(j_args)
 
         return ret
 
