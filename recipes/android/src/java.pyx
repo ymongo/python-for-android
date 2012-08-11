@@ -30,6 +30,8 @@ cdef class JavaClass(object):
         args, ret = definition[1:].split(')')
         if args:
             args = args.split(';')
+            if args[-1] == '':
+                args.pop(-1)
         else:
             args = []
         return ret, args
@@ -102,6 +104,8 @@ cdef class JavaClass(object):
                 if argtype == 'Ljava/lang/String':
                     if isinstance(py_arg, basestring):
                         j_args[index].l = self.j_env[0].NewStringUTF(self.j_env, <char *><bytes>py_arg)
+                    elif py_arg is None:
+                        j_args[index].l = NULL
                     else:
                         raise Exception("Not a correct type of string, must be an instance of str or unicode")
                 else:
@@ -153,6 +157,8 @@ cdef class JavaMethod(object):
         args, ret = definition[1:].split(')')
         if args:
             args = args.split(';')
+            if args[-1] == '':
+                args.pop(-1)
         else:
             args = []
         self.definition_return = ret
