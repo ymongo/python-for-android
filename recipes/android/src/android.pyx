@@ -1,3 +1,7 @@
+# probably not enought
+cdef extern from "jni.h":
+    JNIEnv *SDL_ANDROID_GetJNIEnv(void)
+
 # Android-specific python services.
 
 cdef extern int SDL_ANDROID_CheckPause()
@@ -246,3 +250,31 @@ class AndroidBrowser(object):
 import webbrowser
 webbrowser.register('android', AndroidBrowser, None, -1)
 
+
+# -------------------------------------------------------------------
+# Bluetooth
+cdef class Bluetooth(object):
+    cdef JNIEnv *j_env = SDL_ANDROID_GetJNIEnv()
+    cdef jclass *j_class = *j_env->FindClass(j_env,
+            "org/renpy/android/BluetoothConnection")
+
+    cdef __init__(self):
+        constructor = j_env->GetMethod(j_env, j_class, "<init>", "(C)V")
+        self._jself = j_env->NewObject(j_env, j_class, constructor)
+
+    cdef void setUUID(self, uuid):
+        j_method = j_env->GetMethod(j_env, j_class,
+                "setUUID",
+                "(Ljava/lang/String;)V")
+
+        j_env->CallVoidMethod(
+                j_env, j_class, self._jself, j_method,
+                j_env->NewStringUTF(uuid))
+
+    cdef getUUID(self):
+        j_method = j_env->GetMethod(j_env, j_class,
+                "getUUID",
+                "()Ljava/lang/String;")
+
+        return j_env->GetStringUTFChars(j_env->CallStringMethod(
+            j_env, j_class, self._jself, j_method))
