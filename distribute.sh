@@ -71,7 +71,9 @@ if [ $? -eq 0 ]; then
 	export NDK_CCACHE="ccache"
 fi
 
-set -x
+if [ "X$DEBUG" != "X" ]; then
+	set -x
+fi
 
 function try () {
     "$@" || exit -1

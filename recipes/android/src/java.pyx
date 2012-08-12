@@ -31,7 +31,8 @@ Limitations
 - Array currently not supported
 '''
 
-__all__ = ('JavaObject', 'JavaClass', 'JavaMethod', 'JavaStaticMethod')
+__all__ = ('JavaObject', 'JavaClass', 'JavaMethod', 'JavaStaticMethod',
+    'JavaField', 'JavaStaticField')
 
 include "jni.pxi"
 from libc.stdlib cimport malloc, free
@@ -80,8 +81,9 @@ cdef class JavaClass(object):
     def __init__(self, *args):
         super(JavaClass, self).__init__()
         self.resolve_class()
-        self.resolve_methods()
         self.call_constructor(args)
+        self.resolve_methods()
+        self.resolve_fields()
 
     cdef void call_constructor(self, args):
         # the goal is to found the class constructor, and call it with the
@@ -117,6 +119,9 @@ cdef class JavaClass(object):
             # create the object
             self.j_self = self.j_env[0].NewObjectA(self.j_env, self.j_cls,
                     constructor, j_args)
+            if self.j_self == NULL:
+                raise JavaException('Unable to instanciate {0}'.format(
+                    self.__javaclass__))
 
         finally:
             if j_args != NULL:
@@ -146,6 +151,16 @@ cdef class JavaClass(object):
                 continue
             jm = value
             jm.resolve_method(self, name)
+
+    cdef void resolve_fields(self):
+        # search all the JavaField within our class, and resolve them
+        cdef JavaField jf
+        for name in dir(self.__class__):
+            value = getattr(self.__class__, name)
+            if not isinstance(value, JavaField):
+                continue
+            jf = value
+            jf.resolve_field(self, name)
 
     cdef void populate_args(self, list definition_args, jvalue *j_args, args):
         # do the conversion from a Python object to Java from a Java definition
@@ -186,6 +201,300 @@ cdef class JavaClass(object):
                     j_args[index].l = j_object.obj
             elif argtype[0] == '[':
                 raise NotImplemented('List arguments not accepted')
+
+    cdef convert_jarray_to_python(self, definition, jobject j_object):
+        cdef jboolean iscopy
+        cdef jboolean *j_booleans
+        cdef jbyte *j_bytes
+        cdef jchar *j_chars
+        cdef jshort *j_shorts
+        cdef jint *j_ints
+        cdef jlong *j_longs
+        cdef jfloat *j_float
+        cdef jdouble *j_double
+        cdef object ret = None
+        cdef jsize array_size
+        cdef int i
+
+        if j_object == NULL:
+            return None
+
+        array_size = self.j_env[0].GetArrayLength(self.j_env, j_object)
+
+        r = definition[0]
+        if r == 'Z':
+            j_booleans = self.j_env[0].GetBooleanArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(True if j_booleans[i] else False)
+                    for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseBooleanArrayElements(
+                        self.j_env, j_object, j_booleans, 0)
+
+        elif r == 'B':
+            j_bytes = self.j_env[0].GetByteArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<char>j_bytes[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseByteArrayElements(
+                        self.j_env, j_object, j_bytes, 0)
+
+        elif r == 'C':
+            j_chars = self.j_env[0].GetCharArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<char>j_chars[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseCharArrayElements(
+                        self.j_env, j_object, j_chars, 0)
+
+        elif r == 'S':
+            j_shorts = self.j_env[0].GetShortArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<short>j_shorts[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseShortArrayElements(
+                        self.j_env, j_object, j_shorts, 0)
+
+        elif r == 'I':
+            j_ints = self.j_env[0].GetIntArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<int>j_ints[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseIntArrayElements(
+                        self.j_env, j_object, j_ints, 0)
+
+        elif r == 'J':
+            j_longs = self.j_env[0].GetLongArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<long>j_longs[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseLongArrayElements(
+                        self.j_env, j_object, j_longs, 0)
+
+        elif r == 'F':
+            j_floats = self.j_env[0].GetFloatArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<float>j_floats[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseFloatArrayElements(
+                        self.j_env, j_object, j_floats, 0)
+
+        elif r == 'D':
+            j_doubles = self.j_env[0].GetDoubleArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<double>j_doubles[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseDoubleArrayElements(
+                        self.j_env, j_object, j_doubles, 0)
+
+        elif r == 'L':
+            # TODO support list of strings etc...
+            raise NotImplementedError('Array of Java object not done yet')
+
+        else:
+            raise JavaException('Invalid return definition for array')
+
+        return ret
+
+
+cdef class JavaField(object):
+    cdef jfieldID j_field
+    cdef JavaClass jc
+    cdef JNIEnv *j_env
+    cdef jclass j_cls
+    cdef jobject j_self
+    cdef bytes definition
+    cdef object is_static
+
+    def __cinit__(self, definition, **kwargs):
+        self.j_field = NULL
+        self.j_env = NULL
+        self.j_cls = NULL
+
+    def __init__(self, definition, **kwargs):
+        super(JavaField, self).__init__()
+        self.definition = definition
+        self.is_static = kwargs.get('static', False)
+
+    cdef resolve_field(self, JavaClass jc, bytes name):
+        # called by JavaClass when we want to resolve the field name
+        self.jc = jc
+        self.j_env = jc.j_env
+        self.j_cls = jc.j_cls
+        self.j_self = jc.j_self
+        if self.is_static:
+            self.j_field = self.j_env[0].GetStaticFieldID(
+                    self.j_env, self.j_cls, <char *>name,
+                    <char *>self.definition)
+        else:
+            self.j_field = self.j_env[0].GetFieldID(
+                    self.j_env, self.j_cls, <char *>name,
+                    <char *>self.definition)
+
+        if self.j_field == NULL:
+            raise JavaException('Unable to found the field'
+                    ' {0} in {1}'.format(name, jc.__javaclass__))
+
+    def __get__(self, obj, objtype):
+        if obj is None:
+            return self
+        if self.is_static:
+            return self.read_static_field()
+        return self.read_field()
+
+    cdef read_field(self):
+        cdef jboolean j_boolean
+        cdef jbyte j_byte
+        cdef jchar j_char
+        cdef jshort j_short
+        cdef jint j_int
+        cdef jlong j_long
+        cdef jfloat j_float
+        cdef jdouble j_double
+        cdef jobject j_object
+        cdef char *c_str
+        cdef bytes py_str
+        cdef object ret = None
+        cdef JavaObject ret_jobject
+
+        # return type of the java method
+        r = self.definition[0]
+
+        # now call the java method
+        if r == 'Z':
+            j_boolean = self.j_env[0].GetBooleanField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = True if j_boolean else False
+        elif r == 'B':
+            j_byte = self.j_env[0].GetByteField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <char>j_byte
+        elif r == 'C':
+            j_char = self.j_env[0].GetCharField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = chr(<char>j_char)
+        elif r == 'S':
+            j_short = self.j_env[0].GetShortField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <short>j_short
+        elif r == 'I':
+            j_int = self.j_env[0].GetIntField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <int>j_int
+        elif r == 'J':
+            j_long = self.j_env[0].GetLongField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <long>j_long
+        elif r == 'F':
+            j_float = self.j_env[0].GetFloatField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <float>j_float
+        elif r == 'D':
+            j_double = self.j_env[0].GetDoubleField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <double>j_double
+        elif r == 'L':
+            j_object = self.j_env[0].GetObjectField(
+                    self.j_env, self.j_self, self.j_field)
+            if j_object == NULL:
+                return None
+            if self.definition == 'Ljava/lang/String;':
+                c_str = <char *>self.j_env[0].GetStringUTFChars(
+                        self.j_env, j_object, NULL)
+                py_str = <bytes>c_str
+                self.j_env[0].ReleaseStringUTFChars(
+                        self.j_env, j_object, c_str)
+                ret = py_str
+            else:
+                ret_jobject = JavaObject()
+                ret_jobject.obj = j_object
+                ret = ret_jobject
+        elif r == '[':
+            r = self.definition[1:]
+            j_object = self.j_env[0].GetObjectField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = self.jc.convert_jarray_to_python(r, j_object)
+        else:
+            raise Exception('Invalid field definition')
+
+        return ret
+
+    cdef read_static_field(self):
+        cdef jboolean j_boolean
+        cdef jbyte j_byte
+        cdef jchar j_char
+        cdef jshort j_short
+        cdef jint j_int
+        cdef jlong j_long
+        cdef jfloat j_float
+        cdef jdouble j_double
+        cdef jobject j_object
+        cdef char *c_str
+        cdef bytes py_str
+        cdef object ret = None
+        cdef JavaObject ret_jobject
+
+        # return type of the java method
+        r = self.definition[0]
+
+        # now call the java method
+        if r == 'Z':
+            j_boolean = self.j_env[0].GetStaticBooleanField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = True if j_boolean else False
+        elif r == 'B':
+            j_byte = self.j_env[0].GetStaticByteField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <char>j_byte
+        elif r == 'C':
+            j_char = self.j_env[0].GetStaticCharField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = chr(<char>j_char)
+        elif r == 'S':
+            j_short = self.j_env[0].GetStaticShortField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <short>j_short
+        elif r == 'I':
+            j_int = self.j_env[0].GetStaticIntField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <int>j_int
+        elif r == 'J':
+            j_long = self.j_env[0].GetStaticLongField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <long>j_long
+        elif r == 'F':
+            j_float = self.j_env[0].GetStaticFloatField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <float>j_float
+        elif r == 'D':
+            j_double = self.j_env[0].GetStaticDoubleField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = <double>j_double
+        elif r == 'L':
+            j_object = self.j_env[0].GetStaticObjectField(
+                    self.j_env, self.j_self, self.j_field)
+            if j_object == NULL:
+                return None
+            if self.definition == 'Ljava/lang/String;':
+                c_str = <char *>self.j_env[0].GetStringUTFChars(
+                        self.j_env, j_object, NULL)
+                py_str = <bytes>c_str
+                self.j_env[0].ReleaseStringUTFChars(
+                        self.j_env, j_object, c_str)
+                ret = py_str
+            else:
+                ret_jobject = JavaObject()
+                ret_jobject.obj = j_object
+                ret = ret_jobject
+        elif r == '[':
+            r = self.definition[1:]
+            j_object = self.j_env[0].GetStaticObjectField(
+                    self.j_env, self.j_self, self.j_field)
+            ret = self.jc.convert_jarray_to_python(r, j_object)
+        else:
+            raise Exception('Invalid field definition')
+
+        return ret
 
 
 cdef class JavaMethod(object):
@@ -289,7 +598,7 @@ cdef class JavaMethod(object):
         elif r == 'C':
             j_char = self.j_env[0].CallCharMethodA(
                     self.j_env, self.j_self, self.j_method, j_args)
-            ret = <char>j_char
+            ret = chr(<char>j_char)
         elif r == 'S':
             j_short = self.j_env[0].CallShortMethodA(
                     self.j_env, self.j_self, self.j_method, j_args)
@@ -315,7 +624,7 @@ cdef class JavaMethod(object):
                     self.j_env, self.j_self, self.j_method, j_args)
             if j_object == NULL:
                 return None
-            if r == 'Ljava/lang/String;':
+            if self.definition_return == 'Ljava/lang/String;':
                 c_str = <char *>self.j_env[0].GetStringUTFChars(
                         self.j_env, j_object, NULL)
                 py_str = <bytes>c_str
@@ -330,7 +639,7 @@ cdef class JavaMethod(object):
             r = self.definition_return[1:]
             j_object = self.j_env[0].CallObjectMethodA(
                     self.j_env, self.j_self, self.j_method, j_args)
-            ret = self.convert_return_array(j_object)
+            ret = self.jc.convert_jarray_to_python(r, j_object)
         else:
             raise Exception('Invalid return definition?')
 
@@ -354,14 +663,6 @@ cdef class JavaMethod(object):
         # return type of the java method
         r = self.definition_return[0]
 
-        '''
-        print 'TYPE', r
-        print 'jenv', 'ok' if self.j_env else 'nop'
-        print 'jcls', 'ok' if self.j_cls else 'nop'
-        print 'jmethods', 'ok' if self.j_method else 'nop'
-        print 'jargs', 'ok' if j_args else 'nop'
-        '''
-
         # now call the java method
         if r == 'V':
             self.j_env[0].CallStaticVoidMethodA(
@@ -377,7 +678,7 @@ cdef class JavaMethod(object):
         elif r == 'C':
             j_char = self.j_env[0].CallStaticCharMethodA(
                     self.j_env, self.j_cls, self.j_method, j_args)
-            ret = <char>j_char
+            ret = chr(<char>j_char)
         elif r == 'S':
             j_short = self.j_env[0].CallStaticShortMethodA(
                     self.j_env, self.j_cls, self.j_method, j_args)
@@ -402,7 +703,7 @@ cdef class JavaMethod(object):
             # accept only string for the moment
             j_object = self.j_env[0].CallStaticObjectMethodA(
                     self.j_env, self.j_cls, self.j_method, j_args)
-            if r == 'Ljava/lang/String;':
+            if self.definition_return == 'Ljava/lang/String;':
                 c_str = <char *>self.j_env[0].GetStringUTFChars(
                         self.j_env, j_object, NULL)
                 py_str = <bytes>c_str
@@ -417,103 +718,9 @@ cdef class JavaMethod(object):
             r = self.definition_return[1:]
             j_object = self.j_env[0].CallStaticObjectMethodA(
                     self.j_env, self.j_cls, self.j_method, j_args)
-            ret = self.convert_return_array(j_object)
+            ret = self.jc.convert_jarray_to_python(r, j_object)
         else:
             raise Exception('Invalid return definition?')
-
-        return ret
-
-    cdef convert_return_array(self, jobject j_object):
-        cdef jboolean iscopy
-        cdef jboolean *j_booleans
-        cdef jbyte *j_bytes
-        cdef jchar *j_chars
-        cdef jshort *j_shorts
-        cdef jint *j_ints
-        cdef jlong *j_longs
-        cdef jfloat *j_float
-        cdef jdouble *j_double
-        cdef object ret = None
-        cdef jsize array_size
-        cdef int i
-
-        if j_object == NULL:
-            return None
-
-        array_size = self.j_env[0].GetArrayLength(self.j_env, j_object)
-
-        r = self.definition_return[1]
-        if r == 'Z':
-            j_booleans = self.j_env[0].GetBooleanArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(True if j_booleans[i] else False)
-                    for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseBooleanArrayElements(
-                        self.j_env, j_object, j_booleans, 0)
-
-        elif r == 'B':
-            j_bytes = self.j_env[0].GetByteArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(<char>j_bytes[i]) for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseByteArrayElements(
-                        self.j_env, j_object, j_bytes, 0)
-
-        elif r == 'C':
-            j_chars = self.j_env[0].GetCharArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(<char>j_chars[i]) for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseCharArrayElements(
-                        self.j_env, j_object, j_chars, 0)
-
-        elif r == 'S':
-            j_shorts = self.j_env[0].GetShortArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(<short>j_shorts[i]) for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseShortArrayElements(
-                        self.j_env, j_object, j_shorts, 0)
-
-        elif r == 'I':
-            j_ints = self.j_env[0].GetIntArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(<int>j_ints[i]) for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseIntArrayElements(
-                        self.j_env, j_object, j_ints, 0)
-
-        elif r == 'J':
-            j_longs = self.j_env[0].GetLongArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(<long>j_longs[i]) for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseLongArrayElements(
-                        self.j_env, j_object, j_longs, 0)
-
-        elif r == 'F':
-            j_floats = self.j_env[0].GetFloatArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(<float>j_floats[i]) for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseFloatArrayElements(
-                        self.j_env, j_object, j_floats, 0)
-
-        elif r == 'D':
-            j_doubles = self.j_env[0].GetDoubleArrayElements(
-                    self.j_env, j_object, &iscopy)
-            ret = [(<double>j_doubles[i]) for i in range(array_size)]
-            if iscopy:
-                self.j_env[0].ReleaseDoubleArrayElements(
-                        self.j_env, j_object, j_doubles, 0)
-
-        elif r == 'L':
-            # TODO support list of strings etc...
-            raise NotImplementedError('Array of Java object not done yet')
-
-        else:
-            raise JavaException('Invalid return definition for array')
 
         return ret
 
@@ -521,3 +728,8 @@ class JavaStaticMethod(JavaMethod):
     def __init__(self, definition, **kwargs):
         kwargs['static'] = True
         super(JavaStaticMethod, self).__init__(definition, **kwargs)
+
+class JavaStaticField(JavaField):
+    def __init__(self, definition, **kwargs):
+        kwargs['static'] = True
+        super(JavaStaticField, self).__init__(definition, **kwargs)
