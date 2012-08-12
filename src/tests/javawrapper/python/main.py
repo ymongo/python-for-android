@@ -14,6 +14,16 @@ class Test(JavaClass):
     methodD = JavaMethod('()D')
     methodString = JavaMethod('()Ljava/lang/String;')
 
+    methodArrayZ = JavaMethod('()[Z')
+    methodArrayB = JavaMethod('()[B')
+    methodArrayC = JavaMethod('()[C')
+    methodArrayS = JavaMethod('()[S')
+    methodArrayI = JavaMethod('()[I')
+    methodArrayJ = JavaMethod('()[J')
+    methodArrayF = JavaMethod('()[F')
+    methodArrayD = JavaMethod('()[D')
+    methodArrayString = JavaMethod('()[Ljava/lang/String;')
+
     methodStaticZ = JavaStaticMethod('()Z')
     methodStaticB = JavaStaticMethod('()B')
     methodStaticC = JavaStaticMethod('()C')
@@ -94,5 +104,16 @@ do('field long', test.fieldJ, 2147483467)
 do('field float', test.fieldF, 1.23456789)
 do('field double', test.fieldD, 1.23456789)
 do('field String', test.fieldString, 'helloworld')
+
+print '-- test methods with array return'
+do('method bool', test.methodArrayZ(), [True] * 3)
+do('method byte', test.methodArrayB(), [127] * 3)
+do('method char', test.methodArrayC(), ['k'] * 3)
+do('method short', test.methodArrayS(), [32767] * 3)
+do('method int', test.methodArrayI(), [2147483467] * 3)
+do('method long', test.methodArrayJ(), [2147483467] * 3)
+do('method float', test.methodArrayF(), [1.23456789] * 3)
+do('method double', test.methodArrayD(), [1.23456789] * 3)
+do('method String', test.methodArrayString(), ['helloworld'] * 3)
 
 print '--------------- ENDTESTS ----------------'

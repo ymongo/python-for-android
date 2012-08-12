@@ -1,4 +1,4 @@
 .PHONY: test
 
 tests:
-	$(MAKE) -C src/tests/javawrapper
+	$(MAKE) -C src/tests/javawrapper all
