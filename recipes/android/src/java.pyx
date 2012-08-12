@@ -87,6 +87,7 @@ cdef class JavaClass(object):
         # the goal is to found the class constructor, and call it with the
         # correct arguments.
         cdef jvalue *j_args = NULL
+        cdef jmethodID constructor = NULL
 
         # get the constructor definition if exist
         definition = '()V'
@@ -107,7 +108,7 @@ cdef class JavaClass(object):
                 self.populate_args(d_args, j_args, args)
 
             # get the java constructor
-            cdef jmethodID constructor = self.j_env[0].GetMethodID(
+            constructor = self.j_env[0].GetMethodID(
                 self.j_env, self.j_cls, '<init>', <char *><bytes>definition)
             if constructor == NULL:
                 raise JavaException('Unable to found the constructor'
@@ -195,7 +196,7 @@ cdef class JavaMethod(object):
     cdef JNIEnv *j_env
     cdef jclass j_cls
     cdef jobject j_self
-    cdef char *definition
+    cdef bytes definition
     cdef object is_static
     cdef object definition_return
     cdef object definition_args
@@ -207,8 +208,9 @@ cdef class JavaMethod(object):
 
     def __init__(self, definition, **kwargs):
         super(JavaMethod, self).__init__()
-        self.definition = <char *><bytes>definition
-        self.definition_return, self.definition_args = parse_definition(definition)
+        self.definition = <bytes>definition
+        self.definition_return, self.definition_args = \
+                parse_definition(definition)
         self.is_static = kwargs.get('static', False)
 
     cdef resolve_method(self, JavaClass jc, bytes name):
@@ -219,11 +221,16 @@ cdef class JavaMethod(object):
         self.j_self = jc.j_self
         if self.is_static:
             self.j_method = self.j_env[0].GetStaticMethodID(
-                    self.j_env, self.j_cls, <char *>name, self.definition)
+                    self.j_env, self.j_cls, <char *>name,
+                    <char *>self.definition)
         else:
             self.j_method = self.j_env[0].GetMethodID(
-                    self.j_env, self.j_cls, <char *>name, self.definition)
-        assert(self.j_method != NULL)
+                    self.j_env, self.j_cls, <char *>name,
+                    <char *>self.definition)
+
+        if self.j_method == NULL:
+            raise JavaException('Unable to found the method'
+                    ' {0} in {1}'.format(name, jc.__javaclass__))
 
     def __call__(self, *args):
         # argument array to pass to the method
@@ -304,9 +311,10 @@ cdef class JavaMethod(object):
                     self.j_env, self.j_self, self.j_method, j_args)
             ret = <double>j_double
         elif r == 'L':
-            # accept only string for the moment
             j_object = self.j_env[0].CallObjectMethodA(
                     self.j_env, self.j_self, self.j_method, j_args)
+            if j_object == NULL:
+                return None
             if r == 'Ljava/lang/String;':
                 c_str = <char *>self.j_env[0].GetStringUTFChars(
                         self.j_env, j_object, NULL)
@@ -319,8 +327,10 @@ cdef class JavaMethod(object):
                 ret_jobject.obj = j_object
                 ret = ret_jobject
         elif r == '[':
-            # TODO array support
-            raise NotImplementedError("Array arguments not implemented")
+            r = self.definition_return[1:]
+            j_object = self.j_env[0].CallObjectMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
+            ret = self.convert_return_array(j_object)
         else:
             raise Exception('Invalid return definition?')
 
@@ -361,8 +371,8 @@ cdef class JavaMethod(object):
                     self.j_env, self.j_cls, self.j_method, j_args)
             ret = True if j_boolean else False
         elif r == 'B':
-            j_byte = self.j_env[0].CallStaticByteMethodA
-            (self.j_env, self.j_cls, self.j_method, j_args)
+            j_byte = self.j_env[0].CallStaticByteMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <char>j_byte
         elif r == 'C':
             j_char = self.j_env[0].CallStaticCharMethodA(
@@ -381,8 +391,8 @@ cdef class JavaMethod(object):
                     self.j_env, self.j_cls, self.j_method, j_args)
             ret = <long>j_long
         elif r == 'F':
-            j_float = self.j_env[0].CallStaticFloatMethodA
-            (self.j_env, self.j_cls, self.j_method, j_args)
+            j_float = self.j_env[0].CallStaticFloatMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <float>j_float
         elif r == 'D':
             j_double = self.j_env[0].CallStaticDoubleMethodA(
@@ -404,10 +414,106 @@ cdef class JavaMethod(object):
                 ret_jobject.obj = j_object
                 ret = ret_jobject
         elif r == '[':
-            # TODO array support
-            raise NotImplementedError("Array arguments not implemented")
+            r = self.definition_return[1:]
+            j_object = self.j_env[0].CallStaticObjectMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
+            ret = self.convert_return_array(j_object)
         else:
             raise Exception('Invalid return definition?')
+
+        return ret
+
+    cdef convert_return_array(self, jobject j_object):
+        cdef jboolean iscopy
+        cdef jboolean *j_booleans
+        cdef jbyte *j_bytes
+        cdef jchar *j_chars
+        cdef jshort *j_shorts
+        cdef jint *j_ints
+        cdef jlong *j_longs
+        cdef jfloat *j_float
+        cdef jdouble *j_double
+        cdef object ret = None
+        cdef jsize array_size
+        cdef int i
+
+        if j_object == NULL:
+            return None
+
+        array_size = self.j_env[0].GetArrayLength(self.j_env, j_object)
+
+        r = self.definition_return[1]
+        if r == 'Z':
+            j_booleans = self.j_env[0].GetBooleanArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(True if j_booleans[i] else False)
+                    for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseBooleanArrayElements(
+                        self.j_env, j_object, j_booleans, 0)
+
+        elif r == 'B':
+            j_bytes = self.j_env[0].GetByteArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<char>j_bytes[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseByteArrayElements(
+                        self.j_env, j_object, j_bytes, 0)
+
+        elif r == 'C':
+            j_chars = self.j_env[0].GetCharArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<char>j_chars[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseCharArrayElements(
+                        self.j_env, j_object, j_chars, 0)
+
+        elif r == 'S':
+            j_shorts = self.j_env[0].GetShortArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<short>j_shorts[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseShortArrayElements(
+                        self.j_env, j_object, j_shorts, 0)
+
+        elif r == 'I':
+            j_ints = self.j_env[0].GetIntArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<int>j_ints[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseIntArrayElements(
+                        self.j_env, j_object, j_ints, 0)
+
+        elif r == 'J':
+            j_longs = self.j_env[0].GetLongArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<long>j_longs[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseLongArrayElements(
+                        self.j_env, j_object, j_longs, 0)
+
+        elif r == 'F':
+            j_floats = self.j_env[0].GetFloatArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<float>j_floats[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseFloatArrayElements(
+                        self.j_env, j_object, j_floats, 0)
+
+        elif r == 'D':
+            j_doubles = self.j_env[0].GetDoubleArrayElements(
+                    self.j_env, j_object, &iscopy)
+            ret = [(<double>j_doubles[i]) for i in range(array_size)]
+            if iscopy:
+                self.j_env[0].ReleaseDoubleArrayElements(
+                        self.j_env, j_object, j_doubles, 0)
+
+        elif r == 'L':
+            # TODO support list of strings etc...
+            raise NotImplementedError('Array of Java object not done yet')
+
+        else:
+            raise JavaException('Invalid return definition for array')
 
         return ret
 
