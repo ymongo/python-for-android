@@ -101,6 +101,7 @@ cdef class JavaClass(object):
             raise JavaException('Invalid call, number of argument'
                     ' mismatch for constructor')
 
+        cdef jmethodID constructor
         try:
             # convert python arguments to java arguments
             if len(args):
