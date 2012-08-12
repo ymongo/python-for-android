@@ -214,7 +214,12 @@ cdef class JavaClass(object):
         cdef jdouble *j_double
         cdef object ret = None
         cdef jsize array_size
+
         cdef int i
+        cdef jobject obj
+        cdef char *c_str
+        cdef bytes py_str
+        cdef JavaObject ret_jobject
 
         if j_object == NULL:
             return None
@@ -288,9 +293,30 @@ cdef class JavaClass(object):
                         self.j_env, j_object, j_doubles, 0)
 
         elif r == 'L':
-            # TODO support list of strings etc...
-            raise NotImplementedError('Array of Java object not done yet')
-
+            ret = []
+            if definition == 'Ljava/lang/String;':
+                for i in range(array_size):
+                    obj = self.j_env[0].GetObjectArrayElement(
+                            self.j_env, j_object, i)
+                    if obj == NULL:
+                        ret.append(None)
+                        continue
+                    c_str = <char *>self.j_env[0].GetStringUTFChars(
+                            self.j_env, obj, NULL)
+                    py_str = <bytes>c_str
+                    self.j_env[0].ReleaseStringUTFChars(
+                            self.j_env, j_object, c_str)
+                    ret.append(py_str)
+            else:
+                for i in range(array_size):
+                    obj = self.j_env[0].GetObjectArrayElement(
+                            self.j_env, j_object, i)
+                    if obj == NULL:
+                        ret.append(None)
+                        continue
+                    ret_jobject = JavaObject()
+                    ret_jobject.obj = obj
+                    ret.append(ret_jobject)
         else:
             raise JavaException('Invalid return definition for array')
 
