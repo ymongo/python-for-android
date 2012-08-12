@@ -1,12 +1,73 @@
+'''
+Java wrapper
+============
+
+With this module, you can create Python class that reflect a Java class, and use
+it directly in Python. For example, if you have a Java class named
+Hardware.java, in org/test directory::
+
+    public class Hardware {
+        static int getDPI() {
+            return metrics.densityDpi;
+        }
+    }
+
+You can create this Python class to use it::
+
+    class Hardware(JavaClass):
+        __javaclass__ = 'org/test/Hardware'
+        getDPI = JavaStaticMethod('()I')
+
+And then, do::
+
+    hardware = Hardware()
+    hardware.getDPI()
+
+Limitations
+-----------
+
+- Even if the method is static in Java, you need to instanciate the object in
+  Python.
+- Array currently not supported
+'''
+
+__all__ = ('JavaObject', 'JavaClass', 'JavaMethod', 'JavaStaticMethod')
+
 include "jni.pxi"
 from libc.stdlib cimport malloc, free
 
+
+cdef tuple parse_definition(definition):
+    args, ret = definition[1:].split(')')
+    if args:
+        args = args.split(';')
+        if args[-1] == '':
+            args.pop(-1)
+    else:
+        args = []
+    return ret, args
+
+
+class JavaException(Exception):
+    '''Can be a real java exception, or just an exception from the wrapper.
+    '''
+    pass
+
+
 cdef class JavaObject(object):
+    '''Can contain any Java object. Used to store instance, or whatever.
+    '''
+
     cdef jobject obj
+
     def __cinit__(self):
         self.obj = NULL
 
+
 cdef class JavaClass(object):
+    '''Main class to do introspection.
+    '''
+
     cdef JNIEnv *j_env
     cdef jclass j_cls
     cdef jobject j_self
@@ -17,61 +78,66 @@ cdef class JavaClass(object):
         self.j_self = NULL
 
     def __init__(self, *args):
-        """Create java object, with arguments, arguments need to be in the order
-        of the java method signature
-        """
         super(JavaClass, self).__init__()
         self.resolve_class()
         self.resolve_methods()
         self.call_constructor(args)
 
-    cdef parse_definition(self, definition):
-        self.definition = definition
-        args, ret = definition[1:].split(')')
-        if args:
-            args = args.split(';')
-            if args[-1] == '':
-                args.pop(-1)
-        else:
-            args = []
-        return ret, args
-
     cdef void call_constructor(self, args):
+        # the goal is to found the class constructor, and call it with the
+        # correct arguments.
         cdef jvalue *j_args = NULL
+
         # get the constructor definition if exist
         definition = '()V'
-        if hasattr(self, 'j_constructor'):
-            definition = self.j_constructor
-        d_ret, d_args = self.parse_definition(definition)
+        if hasattr(self, '__javaconstructor__'):
+            definition = self.__javaconstructor__
+        self.definition = definition
+        d_ret, d_args = parse_definition(definition)
         if len(args) != len(d_args):
-            raise Exception("Invalid call, number of argument mismatch for constructor")
-        # convert python arguments to java arguments
-        if len(args):
-            j_args = <jvalue *>malloc(sizeof(jvalue) * len(d_args))
-            assert(j_args != NULL)
-            try:
-                if self.populate_args(d_args, j_args, args) < 0:
-                    return
-            finally:
+            raise JavaException('Invalid call, number of argument'
+                    ' mismatch for constructor')
+
+        try:
+            # convert python arguments to java arguments
+            if len(args):
+                j_args = <jvalue *>malloc(sizeof(jvalue) * len(d_args))
+                if j_args == NULL:
+                    raise MemoryError('Unable to allocate memory for java args')
+                self.populate_args(d_args, j_args, args)
+
+            # get the java constructor
+            cdef jmethodID constructor = self.j_env[0].GetMethodID(
+                self.j_env, self.j_cls, '<init>', <char *><bytes>definition)
+            if constructor == NULL:
+                raise JavaException('Unable to found the constructor'
+                        ' for {0}'.format(self.__javaclass__))
+
+            # create the object
+            self.j_self = self.j_env[0].NewObjectA(self.j_env, self.j_cls,
+                    constructor, j_args)
+
+        finally:
+            if j_args != NULL:
                 free(j_args)
-        # get the java constructor
-        cdef jmethodID constructor = self.j_env[0].GetMethodID(
-            self.j_env, self.j_cls, "<init>", <char *><bytes><str>definition)
-        # create the object
-        self.j_self = self.j_env[0].NewObjectA(self.j_env, self.j_cls, constructor, j_args)
-        if j_args != NULL:
-            free(j_args)
 
     cdef void resolve_class(self):
         # search the Java class, and bind to our object
-        assert(hasattr(self, '__javaclass__'))
+        if not hasattr(self, '__javaclass__'):
+            raise JavaException('__javaclass__ definition missing')
+
         self.j_env = SDL_ANDROID_GetJNIEnv()
-        assert(self.j_env != NULL)
-        self.j_cls = self.j_env[0].FindClass(self.j_env, <char *><bytes>self.__javaclass__)
-        assert(self.j_cls != NULL)
+        if self.j_env == NULL:
+            raise JavaException('Unable to get the Android JNI Environment')
+
+        self.j_cls = self.j_env[0].FindClass(self.j_env,
+                <char *><bytes>self.__javaclass__)
+        if self.j_cls == NULL:
+            raise JavaException('Unable to found the class'
+                    ' {0}'.format(self.__javaclass__))
 
     cdef void resolve_methods(self):
-        # search all the JavaMethod within our class.
+        # search all the JavaMethod within our class, and resolve them
         cdef JavaMethod jm
         for name in dir(self.__class__):
             value = getattr(self.__class__, name)
@@ -80,7 +146,8 @@ cdef class JavaClass(object):
             jm = value
             jm.resolve_method(self, name)
 
-    cdef int populate_args(self, list definition_args, jvalue *j_args, args):
+    cdef void populate_args(self, list definition_args, jvalue *j_args, args):
+        # do the conversion from a Python object to Java from a Java definition
         cdef JavaObject j_object
         for index, argtype in enumerate(definition_args):
             py_arg = args[index]
@@ -103,21 +170,26 @@ cdef class JavaClass(object):
             elif argtype[0] == 'L':
                 if argtype == 'Ljava/lang/String':
                     if isinstance(py_arg, basestring):
-                        j_args[index].l = self.j_env[0].NewStringUTF(self.j_env, <char *><bytes>py_arg)
+                        j_args[index].l = self.j_env[0].NewStringUTF(
+                                self.j_env, <char *><bytes>py_arg)
                     elif py_arg is None:
                         j_args[index].l = NULL
                     else:
-                        raise Exception("Not a correct type of string, must be an instance of str or unicode")
+                        raise JavaException('Not a correct type of string, '
+                                'must be an instance of str or unicode')
                 else:
                     if not isinstance(py_arg, JavaObject):
-                        raise Exception('JavaObject needed for argument {0}'.format(index))
+                        raise JavaException('JavaObject needed for argument '
+                                '{0}'.format(index))
                     j_object = py_arg
                     j_args[index].l = j_object.obj
             elif argtype[0] == '[':
-                raise Exception("List arguments not accepted")
-        return 0
+                raise NotImplemented('List arguments not accepted')
+
 
 cdef class JavaMethod(object):
+    '''Used to resolve a Java method, and do the call
+    '''
     cdef jmethodID j_method
     cdef JavaClass jc
     cdef JNIEnv *j_env
@@ -135,7 +207,8 @@ cdef class JavaMethod(object):
 
     def __init__(self, definition, **kwargs):
         super(JavaMethod, self).__init__()
-        self.parse_definition(definition)
+        self.definition = <char *><bytes>definition
+        self.definition_return, self.definition_args = parse_definition(definition)
         self.is_static = kwargs.get('static', False)
 
     cdef resolve_method(self, JavaClass jc, bytes name):
@@ -152,41 +225,26 @@ cdef class JavaMethod(object):
                     self.j_env, self.j_cls, <char *>name, self.definition)
         assert(self.j_method != NULL)
 
-    cdef void parse_definition(self, definition):
-        self.definition = <char *><bytes>definition
-        args, ret = definition[1:].split(')')
-        if args:
-            args = args.split(';')
-            if args[-1] == '':
-                args.pop(-1)
-        else:
-            args = []
-        self.definition_return = ret
-        self.definition_args = args
-
-    def error_if_null(self, value):
-        if not value:
-            raise Exception("Return value was NULL")
-
     def __call__(self, *args):
         # argument array to pass to the method
         cdef jvalue *j_args = NULL
         cdef list d_args = self.definition_args
         if len(args) != len(d_args):
-            raise Exception("Invalid call, number of argument mismatch")
-        if len(args):
-            j_args = <jvalue *>malloc(sizeof(jvalue) * len(d_args))
-            assert(j_args != NULL)
-            try:
-                if self.jc.populate_args(self.definition_args, j_args, args) < 0:
-                    return
-            finally:
-                free(j_args)
+            raise JavaException('Invalid call, number of argument mismatch')
 
         try:
+            # convert python argument if necessary
+            if len(args):
+                j_args = <jvalue *>malloc(sizeof(jvalue) * len(d_args))
+                if j_args == NULL:
+                    raise MemoryError('Unable to allocate memory for java args')
+                self.jc.populate_args(self.definition_args, j_args, args)
+
+            # do the call
             if self.is_static:
                 return self.call_staticmethod(j_args)
             return self.call_method(j_args)
+
         finally:
             if j_args != NULL:
                 free(j_args)
@@ -211,46 +269,50 @@ cdef class JavaMethod(object):
 
         # now call the java method
         if r == 'V':
-            self.j_env[0].CallVoidMethodA(self.j_env, self.j_self, self.j_method, j_args)
+            self.j_env[0].CallVoidMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
         elif r == 'Z':
-            j_boolean = self.j_env[0].CallBooleanMethodA(self.j_env, self.j_self, self.j_method, j_args)
+            j_boolean = self.j_env[0].CallBooleanMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = True if j_boolean else False
         elif r == 'B':
-            j_byte = self.j_env[0].CallByteMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_byte = self.j_env[0].CallByteMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = <char>j_byte
         elif r == 'C':
-            j_char = self.j_env[0].CallCharMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_char = self.j_env[0].CallCharMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = <char>j_char
         elif r == 'S':
-            j_short = self.j_env[0].CallShortMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_short = self.j_env[0].CallShortMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = <short>j_short
         elif r == 'I':
-            j_int = self.j_env[0].CallIntMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_int = self.j_env[0].CallIntMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = <int>j_int
         elif r == 'J':
-            j_long = self.j_env[0].CallLongMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_long = self.j_env[0].CallLongMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = <long>j_long
         elif r == 'F':
-            j_float = self.j_env[0].CallFloatMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_float = self.j_env[0].CallFloatMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = <float>j_float
         elif r == 'D':
-            j_double = self.j_env[0].CallDoubleMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_double = self.j_env[0].CallDoubleMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             ret = <double>j_double
         elif r == 'L':
             # accept only string for the moment
-            j_object = self.j_env[0].CallObjectMethodA(self.j_env, self.j_self, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_object = self.j_env[0].CallObjectMethodA(
+                    self.j_env, self.j_self, self.j_method, j_args)
             if r == 'Ljava/lang/String;':
-                c_str = <char *>self.j_env[0].GetStringUTFChars(self.j_env, j_object, NULL)
+                c_str = <char *>self.j_env[0].GetStringUTFChars(
+                        self.j_env, j_object, NULL)
                 py_str = <bytes>c_str
-                self.j_env[0].ReleaseStringUTFChars(self.j_env, j_object, c_str)
+                self.j_env[0].ReleaseStringUTFChars(
+                        self.j_env, j_object, c_str)
                 ret = py_str
             else:
                 ret_jobject = JavaObject()
@@ -292,46 +354,50 @@ cdef class JavaMethod(object):
 
         # now call the java method
         if r == 'V':
-            self.j_env[0].CallStaticVoidMethodA(self.j_env, self.j_cls, self.j_method, j_args)
+            self.j_env[0].CallStaticVoidMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
         elif r == 'Z':
-            j_boolean = self.j_env[0].CallStaticBooleanMethodA(self.j_env, self.j_cls, self.j_method, j_args)
+            j_boolean = self.j_env[0].CallStaticBooleanMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = True if j_boolean else False
         elif r == 'B':
-            j_byte = self.j_env[0].CallStaticByteMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_byte = self.j_env[0].CallStaticByteMethodA
+            (self.j_env, self.j_cls, self.j_method, j_args)
             ret = <char>j_byte
         elif r == 'C':
-            j_char = self.j_env[0].CallStaticCharMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_char = self.j_env[0].CallStaticCharMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <char>j_char
         elif r == 'S':
-            j_short = self.j_env[0].CallStaticShortMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_short = self.j_env[0].CallStaticShortMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <short>j_short
         elif r == 'I':
-            j_int = self.j_env[0].CallStaticIntMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_int = self.j_env[0].CallStaticIntMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <int>j_int
         elif r == 'J':
-            j_long = self.j_env[0].CallStaticLongMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_long = self.j_env[0].CallStaticLongMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <long>j_long
         elif r == 'F':
-            j_float = self.j_env[0].CallStaticFloatMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_float = self.j_env[0].CallStaticFloatMethodA
+            (self.j_env, self.j_cls, self.j_method, j_args)
             ret = <float>j_float
         elif r == 'D':
-            j_double = self.j_env[0].CallStaticDoubleMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_double = self.j_env[0].CallStaticDoubleMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <double>j_double
         elif r == 'L':
             # accept only string for the moment
-            j_object = self.j_env[0].CallStaticObjectMethodA(self.j_env, self.j_cls, self.j_method, j_args)
-            #self.error_if_null(ret)
+            j_object = self.j_env[0].CallStaticObjectMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             if r == 'Ljava/lang/String;':
-                c_str = <char *>self.j_env[0].GetStringUTFChars(self.j_env, j_object, NULL)
+                c_str = <char *>self.j_env[0].GetStringUTFChars(
+                        self.j_env, j_object, NULL)
                 py_str = <bytes>c_str
-                self.j_env[0].ReleaseStringUTFChars(self.j_env, j_object, c_str)
+                self.j_env[0].ReleaseStringUTFChars(
+                        self.j_env, j_object, c_str)
                 ret = py_str
             else:
                 ret_jobject = JavaObject()
@@ -345,3 +411,7 @@ cdef class JavaMethod(object):
 
         return ret
 
+class JavaStaticMethod(JavaMethod):
+    def __init__(self, definition, **kwargs):
+        kwargs['static'] = True
+        super(JavaStaticMethod, self).__init__(definition, **kwargs)
