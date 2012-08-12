@@ -98,6 +98,7 @@ cdef class JavaClass(object):
             raise JavaException('Invalid call, number of argument'
                     ' mismatch for constructor')
 
+        cdef jmethodID constructor
         try:
             # convert python arguments to java arguments
             if len(args):
@@ -107,7 +108,7 @@ cdef class JavaClass(object):
                 self.populate_args(d_args, j_args, args)
 
             # get the java constructor
-            cdef jmethodID constructor = self.j_env[0].GetMethodID(
+            constructor = self.j_env[0].GetMethodID(
                 self.j_env, self.j_cls, '<init>', <char *><bytes>definition)
             if constructor == NULL:
                 raise JavaException('Unable to found the constructor'
@@ -361,8 +362,8 @@ cdef class JavaMethod(object):
                     self.j_env, self.j_cls, self.j_method, j_args)
             ret = True if j_boolean else False
         elif r == 'B':
-            j_byte = self.j_env[0].CallStaticByteMethodA
-            (self.j_env, self.j_cls, self.j_method, j_args)
+            j_byte = self.j_env[0].CallStaticByteMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <char>j_byte
         elif r == 'C':
             j_char = self.j_env[0].CallStaticCharMethodA(
@@ -381,8 +382,8 @@ cdef class JavaMethod(object):
                     self.j_env, self.j_cls, self.j_method, j_args)
             ret = <long>j_long
         elif r == 'F':
-            j_float = self.j_env[0].CallStaticFloatMethodA
-            (self.j_env, self.j_cls, self.j_method, j_args)
+            j_float = self.j_env[0].CallStaticFloatMethodA(
+                    self.j_env, self.j_cls, self.j_method, j_args)
             ret = <float>j_float
         elif r == 'D':
             j_double = self.j_env[0].CallStaticDoubleMethodA(
