@@ -815,7 +815,7 @@ cdef class JavaMethod(object):
                 <char *>self.definition)
 
         if self.j_method == NULL:
-            raise JavaException('Unable to found the method'
+            raise JavaException('Unable to find the method'
                     ' {0} in {1}'.format(name, jc.__javaclass__))
 
     cdef void resolve_static_method(self, JNIEnv *j_env, jclass j_cls, bytes name):
@@ -828,7 +828,7 @@ cdef class JavaMethod(object):
                 <char *>self.definition)
 
         if self.j_method == NULL:
-            raise JavaException('Unable to found the method'
+            raise JavaException('Unable to find the method'
                     ' {0}'.format(name))
 
     def __call__(self, *args):
@@ -836,7 +836,7 @@ cdef class JavaMethod(object):
         cdef jvalue *j_args = NULL
         cdef list d_args = self.definition_args
         if len(args) != len(d_args):
-            raise JavaException('Invalid call, number of argument mismatch')
+            raise JavaException('Invalid call, number of arguments mismatch')
 
         try:
             # convert python argument if necessary
