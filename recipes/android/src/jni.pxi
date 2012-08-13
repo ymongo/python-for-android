@@ -71,7 +71,7 @@ cdef extern from "jni.h":
         jint *GetVersion(JNIEnv *)
         jclass      (*DefineClass)(JNIEnv*, const_char*, jobject, const_jbyte*,
                             jsize)
-        jclass      (*FindClass)(JNIEnv*, const_char*)
+        jclass      (*FindClass)(JNIEnv*, char*)
 
         jmethodID   (*FromReflectedMethod)(JNIEnv*, jobject)
         jfieldID    (*FromReflectedField)(JNIEnv*, jobject)
@@ -287,7 +287,7 @@ cdef extern from "jni.h":
         jsize       (*GetStringLength)(JNIEnv*, jstring)
         const_jchar* (*GetStringChars)(JNIEnv*, jstring, jboolean*)
         void        (*ReleaseStringChars)(JNIEnv*, jstring, const_jchar*)
-        jstring     (*NewStringUTF)(JNIEnv*, const_char*)
+        jstring     (*NewStringUTF)(JNIEnv*, char*)
         jsize       (*GetStringUTFLength)(JNIEnv*, jstring)
         # JNI spec says this returns const_jbyte*, but that's inconsistent
         const_char* (*GetStringUTFChars)(JNIEnv*, jstring, jboolean*)

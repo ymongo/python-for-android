@@ -38,16 +38,37 @@ include "jni.pxi"
 from libc.stdlib cimport malloc, free
 
 
-cdef tuple parse_definition(definition):
-    args, ret = definition[1:].split(')')
-    if args:
-        args = args.split(';')
-        if args[-1] == '':
-            args.pop(-1)
-    else:
-        args = []
-    return ret, args
+cdef parse_definition(definition):
+    # not a function, just a field
+    if definition[0] != '(':
+        return definition, None
 
+    # it's a function!
+    argdef, ret = definition[1:].split(')')
+    args = []
+
+    while len(argdef):
+        c = argdef[0]
+
+        # read the array char
+        prefix = ''
+        if c == '[':
+            prefix = c
+            argdef = argdef[1:]
+            c = argdef[0]
+
+        # native type
+        if c in 'ZBCSIJFD':
+            args.append(prefix + c)
+            argdef = argdef[1:]
+            continue
+
+        # java class
+        if c == 'L':
+            c, argdef = argdef.split(';', 1)
+            args.append(prefix + c + ';')
+
+    return ret, args
 
 class JavaException(Exception):
     '''Can be a real java exception, or just an exception from the wrapper.
@@ -164,7 +185,9 @@ cdef class JavaClass(object):
 
     cdef void populate_args(self, list definition_args, jvalue *j_args, args):
         # do the conversion from a Python object to Java from a Java definition
-        cdef JavaObject j_object
+        cdef JavaObject jo
+        cdef JavaClass jc
+        cdef int index
         for index, argtype in enumerate(definition_args):
             py_arg = args[index]
             if argtype == 'Z':
@@ -172,7 +195,7 @@ cdef class JavaClass(object):
             elif argtype == 'B':
                 j_args[index].b = py_arg
             elif argtype == 'C':
-                j_args[index].c = py_arg
+                j_args[index].c = ord(py_arg)
             elif argtype == 'S':
                 j_args[index].s = py_arg
             elif argtype == 'I':
@@ -184,23 +207,150 @@ cdef class JavaClass(object):
             elif argtype == 'D':
                 j_args[index].d = py_arg
             elif argtype[0] == 'L':
-                if argtype == 'Ljava/lang/String':
-                    if isinstance(py_arg, basestring):
-                        j_args[index].l = self.j_env[0].NewStringUTF(
-                                self.j_env, <char *><bytes>py_arg)
-                    elif py_arg is None:
-                        j_args[index].l = NULL
-                    else:
-                        raise JavaException('Not a correct type of string, '
-                                'must be an instance of str or unicode')
+                if py_arg is None:
+                    j_args[index].l = NULL
+                elif isinstance(py_arg, basestring) and \
+                        argtype == 'Ljava/lang/String;':
+                    j_args[index].l = self.j_env[0].NewStringUTF(
+                            self.j_env, <char *><bytes>py_arg)
+                elif isinstance(py_arg, JavaClass):
+                    jc = py_arg
+                    if jc.__javaclass__ != argtype[1:-1]:
+                        raise JavaException('Invalid class argument, want '
+                                '{0!r}, got {1!r}'.format(
+                                    argtype[1:-1], jc.__javaclass__))
+                    j_args[index].l = jc.j_self
+                elif isinstance(py_arg, JavaObject):
+                    jo = py_arg
+                    j_args[index].l = jo.obj
+                    raise JavaException('JavaObject needed for argument '
+                            '{0}'.format(index))
                 else:
-                    if not isinstance(py_arg, JavaObject):
-                        raise JavaException('JavaObject needed for argument '
-                                '{0}'.format(index))
-                    j_object = py_arg
-                    j_args[index].l = j_object.obj
+                    raise JavaException('Invalid python object for this '
+                            'argument. Want {0!r}, got {1!r}'.format(
+                                argtype[1:-1], py_arg))
             elif argtype[0] == '[':
-                raise NotImplemented('List arguments not accepted')
+                if not isinstance(py_arg, list) and \
+                        not isinstance(py_arg, tuple):
+                    raise JavaException('Expecting a python list/tuple, got '
+                            '{0!r}'.format(py_arg))
+
+                j_args[index].l = self.convert_pyarray_to_java(
+                        argtype[1:], py_arg)
+
+    cdef jobject convert_pyarray_to_java(self, definition, pyarray):
+        cdef jobject ret = NULL
+        cdef int array_size = len(pyarray)
+        cdef int i
+        cdef jboolean j_boolean
+        cdef jbyte j_byte
+        cdef jchar j_char
+        cdef jshort j_short
+        cdef jint j_int
+        cdef jlong j_long
+        cdef jfloat j_float
+        cdef jdouble j_double
+        cdef jstring j_string
+        cdef jclass j_class
+        cdef JavaObject jo
+        cdef JavaClass jc
+
+        if definition == 'Z':
+            ret = self.j_env[0].NewBooleanArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_boolean = 1 if pyarray[i] else 0
+                self.j_env[0].SetBooleanArrayRegion(self.j_env,
+                        ret, i, 1, &j_boolean)
+
+        elif definition == 'B':
+            ret = self.j_env[0].NewByteArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_byte = pyarray[i]
+                self.j_env[0].SetByteArrayRegion(self.j_env,
+                        ret, i, 1, &j_byte)
+
+        elif definition == 'C':
+            ret = self.j_env[0].NewCharArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_char = ord(pyarray[i])
+                self.j_env[0].SetCharArrayRegion(self.j_env,
+                        ret, i, 1, &j_char)
+
+        elif definition == 'S':
+            ret = self.j_env[0].NewShortArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_short = pyarray[i]
+                self.j_env[0].SetShortArrayRegion(self.j_env,
+                        ret, i, 1, &j_short)
+
+        elif definition == 'I':
+            ret = self.j_env[0].NewIntArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_int = pyarray[i]
+                self.j_env[0].SetIntArrayRegion(self.j_env,
+                        ret, i, 1, <const_jint *>&j_int)
+
+        elif definition == 'J':
+            ret = self.j_env[0].NewLongArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_long = pyarray[i]
+                self.j_env[0].SetLongArrayRegion(self.j_env,
+                        ret, i, 1, &j_long)
+
+        elif definition == 'F':
+            ret = self.j_env[0].NewFloatArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_float = pyarray[i]
+                self.j_env[0].SetFloatArrayRegion(self.j_env,
+                        ret, i, 1, &j_float)
+
+        elif definition == 'D':
+            ret = self.j_env[0].NewDoubleArray(self.j_env, array_size)
+            for i in range(array_size):
+                j_double = pyarray[i]
+                self.j_env[0].SetDoubleArrayRegion(self.j_env,
+                        ret, i, 1, &j_double)
+
+        elif definition[0] == 'L':
+            j_class = self.j_env[0].FindClass(
+                    self.j_env, <bytes>definition[1:-1])
+            if j_class == NULL:
+                raise JavaException('Cannot create array with a class not '
+                        'found {0!r}'.format(definition[1:-1]))
+            ret = self.j_env[0].NewObjectArray(
+                    self.j_env, array_size, j_class, NULL)
+            for i in range(array_size):
+                arg = pyarray[i]
+                if arg is None:
+                    self.j_env[0].SetObjectArrayElement(
+                            self.j_env, <jobjectArray>ret, i, NULL)
+                elif isinstance(arg, basestring) and \
+                        definition == 'Ljava/lang/String;':
+                    j_string = self.j_env[0].NewStringUTF(
+                            self.j_env, <bytes>arg)
+                    self.j_env[0].SetObjectArrayElement(
+                            self.j_env, <jobjectArray>ret, i, j_string)
+                elif isinstance(arg, JavaClass):
+                    jc = arg
+                    if jc.__javaclass__ != definition[1:-1]:
+                        raise JavaException('Invalid class argument, want '
+                                '{0!r}, got {1!r}'.format(
+                                    definition[1:-1],
+                                    jc.__javaclass__))
+                    self.j_env[0].SetObjectArrayElement(
+                            self.j_env, <jobjectArray>ret, i, jc.j_self)
+                elif isinstance(arg, JavaObject):
+                    jo = arg
+                    self.j_env[0].SetObjectArrayElement(
+                            self.j_env, <jobjectArray>ret, i, jo.obj)
+                else:
+                    raise JavaException('Invalid variable used for L array')
+
+        else:
+            raise JavaException('Invalid array definition')
+
+        return <jobject>ret
+
 
     cdef convert_jarray_to_python(self, definition, jobject j_object):
         cdef jboolean iscopy
@@ -210,8 +360,8 @@ cdef class JavaClass(object):
         cdef jshort *j_shorts
         cdef jint *j_ints
         cdef jlong *j_longs
-        cdef jfloat *j_float
-        cdef jdouble *j_double
+        cdef jfloat *j_floats
+        cdef jdouble *j_doubles
         cdef object ret = None
         cdef jsize array_size
 

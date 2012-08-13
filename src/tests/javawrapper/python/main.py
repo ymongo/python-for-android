@@ -54,6 +54,11 @@ class Test(JavaClass):
     fieldStaticD = JavaStaticField('D')
     fieldStaticString = JavaStaticField('Ljava/lang/String;')
 
+    methodParamsZBCSIJFD = JavaMethod('(ZBCSIJFD)Z')
+    methodParamsString = JavaMethod('(Ljava/lang/String;)Z')
+    methodParamsArrayI = JavaMethod('([I)Z')
+    methodParamsArrayString = JavaMethod('([Ljava/lang/String;)Z')
+
 def do(msg, value, want):
     print 'Testing', msg, ':', (value, want), '-->', (value == want)
 
@@ -115,5 +120,13 @@ do('method long', test.methodArrayJ(), [2147483467] * 3)
 do('method float', test.methodArrayF(), [1.23456789] * 3)
 do('method double', test.methodArrayD(), [1.23456789] * 3)
 do('method String', test.methodArrayString(), ['helloworld'] * 3)
+
+print '-- test methods with params'
+do('method with all natives', test.methodParamsZBCSIJFD(
+    True, 127, 'k', 32767, 2147483467, 2147483467, 1.23456789, 1.23456789), True)
+do('method with String', test.methodParamsString('helloworld'), True)
+do('method with int array', test.methodParamsArrayI([1, 2, 3]), True)
+do('method with String array', test.methodParamsArrayString([
+    'hello', 'world']), True)
 
 print '--------------- ENDTESTS ----------------'

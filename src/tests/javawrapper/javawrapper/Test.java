@@ -93,4 +93,27 @@ public class Test {
 		return x;
 	};
 
+
+	public boolean methodParamsZBCSIJFD(boolean x1, byte x2, char x3, short x4,
+			int x5, long x6, float x7, double x8) {
+		// ADD float / double, but dunno how to do with approx
+		return (x1 == true && x2 == 127 && x3 == 'k' && x4 == 32767 && 
+				x5 == 2147483467 && x6 == 2147483467);
+	}
+
+	public boolean methodParamsString(String s) {
+		return (s.equals("helloworld"));
+	}
+
+	public boolean methodParamsArrayI(int[] x) {
+		if (x.length != 3)
+			return false;
+		return (x[0] == 1 && x[1] == 2 && x[2] == 3);
+	}
+
+	public boolean methodParamsArrayString(String[] x) {
+		if (x.length != 2)
+			return false;
+		return (x[0].equals("hello") && x[1].equals("world"));
+	}
 }
