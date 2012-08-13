@@ -525,6 +525,7 @@ function run_distribute() {
 	try cp -a $SRC_PATH/default.properties .
 	try cp -a $SRC_PATH/local.properties .
 	try cp -a $SRC_PATH/build.py .
+	try cp -a $SRC_PATH/java2python.py .
 	try cp -a $SRC_PATH/buildlib .
 	try cp -a $SRC_PATH/src .
 	try cp -a $SRC_PATH/templates .
