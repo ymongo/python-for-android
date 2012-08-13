@@ -1,8 +1,10 @@
 import time
-from java import JavaClass, JavaMethod, JavaStaticMethod, JavaField, JavaStaticField
+from java import JavaClass, JavaMethod, JavaStaticMethod, JavaField, \
+    JavaStaticField, MetaJavaClass
 
 class Test(JavaClass):
     __javaclass__ = 'org/javawrapper/Test'
+    __metaclass__ = MetaJavaClass
 
     methodZ = JavaMethod('()Z')
     methodB = JavaMethod('()B')
@@ -64,29 +66,31 @@ def do(msg, value, want):
 
 
 print '--------------- TESTS ----------------'
-test = Test()
 
 print '-- test static methods'
-do('method bool', test.methodStaticZ(), True)
-do('method byte', test.methodStaticB(), 127)
-do('method char', test.methodStaticC(), 'k')
-do('method short', test.methodStaticS(), 32767)
-do('method int', test.methodStaticI(), 2147483467)
-do('method long', test.methodStaticJ(), 2147483467)
-do('method float', test.methodStaticF(), 1.23456789)
-do('method double', test.methodStaticD(), 1.23456789)
-do('method String', test.methodStaticString(), 'helloworld')
+do('method bool', Test.methodStaticZ(), True)
+do('method byte', Test.methodStaticB(), 127)
+do('method char', Test.methodStaticC(), 'k')
+do('method short', Test.methodStaticS(), 32767)
+do('method int', Test.methodStaticI(), 2147483467)
+do('method long', Test.methodStaticJ(), 2147483467)
+do('method float', Test.methodStaticF(), 1.23456789)
+do('method double', Test.methodStaticD(), 1.23456789)
+do('method String', Test.methodStaticString(), 'helloworld')
 
 print '-- test static field'
-do('field bool', test.fieldStaticZ, True)
-do('field byte', test.fieldStaticB, 127)
-do('field char', test.fieldStaticC, 'k')
-do('field short', test.fieldStaticS, 32767)
-do('field int', test.fieldStaticI, 2147483467)
-do('field long', test.fieldStaticJ, 2147483467)
-do('field float', test.fieldStaticF, 1.23456789)
-do('field double', test.fieldStaticD, 1.23456789)
-do('field String', test.fieldStaticString, 'helloworld')
+do('field bool', Test.fieldStaticZ, True)
+do('field byte', Test.fieldStaticB, 127)
+do('field char', Test.fieldStaticC, 'k')
+do('field short', Test.fieldStaticS, 32767)
+do('field int', Test.fieldStaticI, 2147483467)
+do('field long', Test.fieldStaticJ, 2147483467)
+do('field float', Test.fieldStaticF, 1.23456789)
+do('field double', Test.fieldStaticD, 1.23456789)
+do('field String', Test.fieldStaticString, 'helloworld')
+
+print '-- create test instance'
+test = Test()
 
 print '-- test methods'
 do('method bool', test.methodZ(), True)
