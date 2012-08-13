@@ -299,6 +299,7 @@ cdef void populate_args(JNIEnv *j_env, list definition_args, jvalue *j_args, arg
             j_args[index].l = convert_pyarray_to_java(
                     j_env, argtype[1:], py_arg)
 
+
 cdef jobject convert_pyarray_to_java(JNIEnv *j_env, definition, pyarray):
     cdef jobject ret = NULL
     cdef int array_size = len(pyarray)
@@ -509,7 +510,7 @@ cdef class JavaClass(object):
         self.resolve_fields()
 
     cdef void call_constructor(self, args):
-        # the goal is to found the class constructor, and call it with the
+        # the goal is to find the class constructor, and call it with the
         # correct arguments.
         cdef jvalue *j_args = NULL
         cdef jmethodID constructor = NULL
@@ -536,7 +537,7 @@ cdef class JavaClass(object):
             constructor = self.j_env[0].GetMethodID(
                 self.j_env, self.j_cls, '<init>', <char *><bytes>definition)
             if constructor == NULL:
-                raise JavaException('Unable to found the constructor'
+                raise JavaException('Unable to find the constructor'
                         ' for {0}'.format(self.__javaclass__))
 
             # create the object
