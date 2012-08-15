@@ -63,6 +63,13 @@ function build_python() {
 		export LDFLAGS="$LDFLAGS -L$BUILD_openssl/"
 	fi
 
+
+	# libcrypt activated ?
+	if [ "X$BUILD_libcrypt" != "X" ]; then
+		nebug "Activate flags for libcrypt / python"
+		export LDFLAGS="$LDFLAGS -L$BUILD_libcrypt/"
+	fi
+
 	try ./configure --host=arm-eabi --prefix="$BUILD_PATH/python-install" --enable-shared --disable-toolbox-glue --disable-framework
 	echo ./configure --host=arm-eabi --prefix="$BUILD_PATH/python-install" --enable-shared --disable-toolbox-glue --disable-framework
 	echo $MAKE HOSTPYTHON=$BUILD_python/hostpython HOSTPGEN=$BUILD_python/hostpgen CROSS_COMPILE_TARGET=yes INSTSONAME=libpython2.7.so
