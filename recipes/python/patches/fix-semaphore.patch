@@ -1,0 +1,59 @@
+--- Python-2.7.2/Modules/_multiprocessing/semaphore.c.orig      2012-11-01 21:52:08.729279756 +0100
++++ Python-2.7.2/Modules/_multiprocessing/semaphore.c   2012-11-01 22:09:20.037257214 +0100
+@@ -35,7 +35,6 @@
+ #define SEM_CREATE(name, val, max) CreateSemaphore(NULL, val, max, NULL)
+ #define SEM_CLOSE(sem) (CloseHandle(sem) ? 0 : -1)
+ #define SEM_GETVALUE(sem, pval) _GetSemaphoreValue(sem, pval)
+-#define SEM_UNLINK(name) 0
+ 
+ static int
+ _GetSemaphoreValue(HANDLE handle, long *value)
+@@ -192,14 +191,32 @@
+ 
+ #define SEM_CLEAR_ERROR()
+ #define SEM_GET_LAST_ERROR() 0
+-#define SEM_CREATE(name, val, max) sem_open(name, O_CREAT | O_EXCL, 0600, val)
+-#define SEM_CLOSE(sem) sem_close(sem)
+ #define SEM_GETVALUE(sem, pval) sem_getvalue(sem, pval)
+-#define SEM_UNLINK(name) sem_unlink(name)
+ 
+-#ifndef HAVE_SEM_UNLINK
+-#  define sem_unlink(name) 0
+-#endif
++static sem_t*
++SEM_CREATE(const char *name, int val, int max)
++{
++    sem_t *sem = malloc(sizeof *sem);
++
++    if (sem == NULL)
++        goto failure;
++
++    if (sem_init(sem, 0, val) == -1)
++        goto failure;
++
++    return sem;
++
++failure:
++    return SEM_FAILED;
++}
++
++static int
++SEM_CLOSE(sem_t *sem)
++{
++    int status = sem_destroy(sem);
++    free(sem);
++    return status;
++}
+ 
+ #ifndef HAVE_SEM_TIMEDWAIT
+ #  define sem_timedwait(sem,deadline) sem_timedwait_save(sem,deadline,_save)
+@@ -441,9 +458,6 @@
+     if (handle == SEM_FAILED || SEM_GET_LAST_ERROR() != 0)
+         goto failure;
+ 
+-    if (SEM_UNLINK(buffer) < 0)
+-        goto failure;
+-
+     result = newsemlockobject(type, handle, kind, maxvalue);
+     if (!result)
+         goto failure;

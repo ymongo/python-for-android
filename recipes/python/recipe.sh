@@ -30,6 +30,10 @@ function prebuild_python() {
 	try patch -p1 < $RECIPE_python/patches/fix-remove-corefoundation.patch
 	try patch -p1 < $RECIPE_python/patches/fix-dynamic-lookup.patch
 
+	try patch -p1 < $RECIPE_python/patches/fix-multiprocessing.patch
+	try patch -p1 < $RECIPE_python/patches/fix-semaphore.patch
+	try patch -p1 < $RECIPE_python/patches/fix-semaphore-test.patch
+
 	system=$(uname -s)
 	if [ "X$system" == "XDarwin" ]; then
 		try patch -p1 < $RECIPE_python/patches/fix-configure-darwin.patch
