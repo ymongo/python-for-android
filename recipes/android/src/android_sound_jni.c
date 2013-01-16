@@ -248,3 +248,37 @@ void android_sound_unpause(int channel) {
         env, cls, mid,
         channel);
 }
+
+double android_sound_get_pos(int channel) {
+    static JNIEnv *env = NULL;
+    static jclass *cls = NULL;
+    static jmethodID mid = NULL;
+
+    if (env == NULL) {
+        env = SDL_ANDROID_GetJNIEnv();
+        aassert(env);
+        cls = (*env)->FindClass(env, "org/renpy/android/RenPySound");
+        aassert(cls);
+        mid = (*env)->GetStaticMethodID(env, cls, "get_pos", "(I)D");
+        aassert(mid);
+    }
+
+    return (*env)->CallStaticDoubleMethod(env, cls, mid, channel);
+}
+
+double android_sound_get_length(int channel) {
+    static JNIEnv *env = NULL;
+    static jclass *cls = NULL;
+    static jmethodID mid = NULL;
+
+    if (env == NULL) {
+        env = SDL_ANDROID_GetJNIEnv();
+        aassert(env);
+        cls = (*env)->FindClass(env, "org/renpy/android/RenPySound");
+        aassert(cls);
+        mid = (*env)->GetStaticMethodID(env, cls, "get_length", "(I)D");
+        aassert(mid);
+    }
+
+    return (*env)->CallStaticDoubleMethod(env, cls, mid, channel);
+}

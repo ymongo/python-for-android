@@ -9,6 +9,8 @@ cdef extern void android_sound_unpause(int)
 cdef extern void android_sound_set_volume(int, float)
 cdef extern void android_sound_set_secondary_volume(int, float)
 cdef extern void android_sound_set_pan(int, float)
+cdef extern double android_sound_get_pos(int)
+cdef extern double android_sound_get_length(int)
 
 cdef extern int android_sound_queue_depth(int)
 
@@ -78,7 +80,7 @@ def busy(channel):
     return playing_name(channel) != None
 
 def get_pos(channel):
-    return 0
+    return android_sound_get_pos(channel)
 
 def set_volume(channel, volume):
     android_sound_set_volume(channel, volume)
@@ -95,6 +97,9 @@ def set_end_event(channel, event):
 
 def get_volume(channel):
     return volumes.get(channel, 1.0)
+
+def get_length(channel):
+    return android_sound_get_length(channel)
 
 def init(freq, stereo, samples, status=False):
     return

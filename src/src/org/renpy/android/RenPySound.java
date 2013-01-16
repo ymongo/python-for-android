@@ -7,37 +7,39 @@ import java.io.IOException;
 import java.util.HashMap;
 
 public class RenPySound {
-    
+
     private static class Channel implements MediaPlayer.OnCompletionListener, MediaPlayer.OnPreparedListener {
 
         // MediaPlayers for the currently playing and queued up
         // sounds.
         MediaPlayer player[];
-        
+
         // Filenames for the currently playing and queued up sounds.
         String filename[];
 
         // Is the corresponding player prepareD?
         boolean prepared[];
-        
+
         // The volume for the left and right channel.
         double volume;
         double secondary_volume;
         double left_volume;
         double right_volume;
-        
+		double duration;
+
         Channel() {
             player = new MediaPlayer[2];
             filename = new String[2];
             prepared = new boolean[2];
-            
+
             player[0] = new MediaPlayer();
             player[1] = new MediaPlayer();
 
             volume = 1.0;
             secondary_volume = 1.0;
             left_volume = 1.0;
-            right_volume = 1.0;            
+            right_volume = 1.0;
+			duration = 0.0;
         }
 
         /**
@@ -50,7 +52,7 @@ public class RenPySound {
 
             try {
                 FileInputStream f = new FileInputStream(real_fn);
-                
+
                 if (length >= 0) {
                     mp.setDataSource(f.getFD(), base, length);
                 } else {
@@ -59,18 +61,18 @@ public class RenPySound {
 
                 mp.setOnCompletionListener(this);
                 mp.setOnPreparedListener(this);
-                
+
                 mp.prepareAsync();
-                
+
                 f.close();
             } catch (IOException e) {
                 Log.w("RenPySound", e);
                 return;
             }
-            
 
-            filename[1] = fn;           
-            
+
+            filename[1] = fn;
+
         }
 
         /**
@@ -80,26 +82,26 @@ public class RenPySound {
             MediaPlayer tmp;
 
             player[0].reset();
-            
+
             tmp = player[0];
             player[0] = player[1];
             player[1] = tmp;
-            
+
             filename[0] = filename[1];
             filename[1] = null;
 
             prepared[0] = prepared[1];
             prepared[1] = false;
-            
+
             if (filename[0] != null) {
                 updateVolume();
 
-                if (prepared[0]) {                
+                if (prepared[0]) {
                     player[0].start();
                 }
             }
         }
-        
+
         /**
          * Stop playback on this channel.
          */
@@ -161,7 +163,7 @@ public class RenPySound {
                 left_volume = 1.0 - pan;
                 right_volume = 1.0;
             }
-            
+
             updateVolume();
          }
 
@@ -187,7 +189,7 @@ public class RenPySound {
                 prepared[1] = true;
             }
         }
-                
+
         /**
          * Called on completion.
          */
@@ -197,7 +199,21 @@ public class RenPySound {
             }
         }
 
-        
+		synchronized public double get_pos() {
+            if (filename[0] == null)
+				return 0;
+			return player[0].getCurrentPosition();
+		}
+
+		synchronized public double get_length() {
+			if (duration != 0)
+				return duration;
+            if (filename[0] == null)
+				return 0;
+			duration = player[0].getDuration() / 1000.;
+			return duration;
+		}
+
     }
 
     // A map from channel number to channel object.
@@ -218,13 +234,13 @@ public class RenPySound {
         return rv;
     }
 
-    static void queue(int channel, String filename, String real_fn, long base, long length) {        
+    static void queue(int channel, String filename, String real_fn, long base, long length) {
         Channel c = getChannel(channel);
         c.queue(filename, real_fn, base, length);
         if (c.filename[0] == null) {
           c.play();
         }
-        
+
     }
 
     static void play(int channel,
@@ -291,8 +307,18 @@ public class RenPySound {
         c.unpause();
     }
 
+	static double get_pos(int channel) {
+		Channel c = getChannel(channel);
+		return c.get_pos();
+	}
+
+	static double get_length(int channel) {
+		Channel c = getChannel(channel);
+		return c.get_length();
+	}
+
     static {
         new MediaPlayer();
     }
-    
+
 }
