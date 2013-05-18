@@ -14,6 +14,7 @@ import android.widget.Toast;
 import android.util.Log;
 import android.content.pm.PackageManager;
 import android.content.pm.ApplicationInfo;
+import android.content.res.AssetFileDescriptor;
 
 import java.io.InputStream;
 import java.io.FileInputStream;
@@ -21,8 +22,12 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.File;
 import java.io.IOException;
+import java.io.FileDescriptor;
+import java.lang.System;
 
 import java.util.zip.GZIPInputStream;
+
+import org.test.showcase.R;
 
 public class PythonActivity extends Activity implements Runnable {
 
@@ -51,6 +56,7 @@ public class PythonActivity extends Activity implements Runnable {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+		SDLSurfaceView.timeStart = System.currentTimeMillis();
         Hardware.context = this;
         Action.context = this;
         this.mActivity = this;
@@ -217,7 +223,21 @@ public class PythonActivity extends Activity implements Runnable {
         //unpackData("public", externalStorage);
 
 		System.loadLibrary("android_redirect");
-		nativeRedirect(getFilesDir().getAbsolutePath(), getApplicationInfo().dataDir + "/lib");
+
+		try {
+			AssetFileDescriptor afd = getAssets().openFd("data.mp3");
+			FileDescriptor fd = afd.getFileDescriptor();
+
+			Log.i("python", String.format("start offset=%d length=%d", afd.getStartOffset(), afd.getLength()));
+
+			nativeRedirect(
+					fd, afd.getStartOffset(), afd.getLength(),
+					getFilesDir().getAbsolutePath(),
+					getApplicationInfo().dataDir + "/lib");
+
+		} catch (IOException e) {
+		}
+
         System.loadLibrary("sdl");
         System.loadLibrary("sdl_image");
         System.loadLibrary("sdl_ttf");
@@ -344,6 +364,8 @@ public class PythonActivity extends Activity implements Runnable {
         PythonActivity.mActivity.stopService(serviceIntent);
     }
 
-	public static native void nativeRedirect(String files_directory, String libs_directory);
+	public static native void nativeRedirect(
+			FileDescriptor fd, long off, long len,
+			String files_directory, String libs_directory);
 }
 

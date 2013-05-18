@@ -56,6 +56,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import android.graphics.Color;
 import android.content.res.Resources;
+import java.lang.System;
 
 
 public class SDLSurfaceView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
@@ -320,6 +321,7 @@ public class SDLSurfaceView extends SurfaceView implements SurfaceHolder.Callbac
 
     // This stores the state of the pause system.
     static int mPause = PAUSE_NOT_PARTICIPATING;
+	public static long timeStart = 0;
 
     private PowerManager.WakeLock wakeLock;
 
@@ -1096,6 +1098,7 @@ public class SDLSurfaceView extends SurfaceView implements SurfaceHolder.Callbac
 
     static void activateInput() {
         mInputActivated = true;
+		Log.i("timestart", String.format("START DURATION: %d", System.currentTimeMillis() - timeStart));
     }
 
     static void openUrl(String url) {

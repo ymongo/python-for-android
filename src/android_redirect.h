@@ -10,4 +10,4 @@
 #define opendir __android_opendir
 #define readdir __android_readdir
 #define closedir __android_closedir
-
+#define fstat __android_fstat

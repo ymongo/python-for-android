@@ -579,7 +579,7 @@ function run_androidredirect() {
 	info "Compile android redirect"
 	export NOANDROIDREDIRECT=1
 	push_arm
-	try $CC $CGLAFS $LDFLAGS -shared -llog -o $LIBS_PATH/libandroid_redirect.so $SRC_PATH/android_redirect.c
+	try $CC $CGLAFS $LDFLAGS -shared -llog -lz -o $LIBS_PATH/libandroid_redirect.so $SRC_PATH/android_redirect.c
 	pop_arm
 	unset NOANDROIDREDIRECT
 }

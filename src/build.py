@@ -3,6 +3,7 @@
 from os.path import dirname, join, isfile, realpath, relpath, split, exists
 from os import makedirs
 from zipfile import ZipFile
+import zlib
 import sys
 sys.path.insert(0, 'buildlib/jinja2.egg')
 sys.path.insert(0, 'buildlib')
@@ -191,16 +192,16 @@ def make_tar(tfn, source_dirs, ignore_path=[]):
         tf.add(fn, afn)
     tf.close()
 
-def mangle(fn):
-    for x in ' /.':
-        fn = fn.replace(x, '_')
-    return 'lib{}.so'.format(fn)
-
 def dirsplit(d):
     sd = ''
     for item in d.split('/'):
         sd = join(sd, item)
         yield sd
+
+def mangle(fn):
+    for x in ' ./':
+        fn = fn.replace(x, '_')
+    return 'lib{}.so'.format(fn)
 
 def make_raw(dest, source_dirs, ignore_path=[]):
     '''
@@ -228,25 +229,42 @@ def make_raw(dest, source_dirs, ignore_path=[]):
 
 
     mfiles = {}
+    mlibs = {}
     mdirs = list()
+    offset = 0
+    isize = 0
 
-    for fn, afn in files:
-        #print '%s: %s' % (dest, fn)
-        mdirs.extend(list(dirsplit(dirname(afn))))
-        #adir = join(dest, dirname(afn))
-        #if not exists(adir):
-        #    print 'create directory', adir
-        #    makedirs(adir)
-        #print 'copy', fn, join(dest, afn)
-        destfn = mangle(afn)
-        mfiles[afn] = destfn
-        shutil.copy(fn, join(dest, destfn))
+    with open(join(dest, 'data.mp3'), 'wb') as fd_data:
+
+        for fn, afn in files:
+
+            mdirs.extend(list(dirsplit(dirname(afn))))
+
+            if afn.endswith('.so'):
+                mlibs[afn] = mangle(afn)
+                shutil.copy(fn, join('libs', 'armeabi', mangle(afn)))
+            else:
+                with open(fn, 'rb') as fd:
+                    data = fd.read()
+                isize += len(data)
+                #zdata = zlib.compress(data, 1)
+                zdata = data
+                print 'Add {} {} -> {}'.format(afn, len(data), len(zdata))
+                mfiles[afn] = (len(zdata), offset, len(data))
+                offset += len(zdata)
+                fd_data.write(zdata)
+
+    print 'Total: {} -> {}'.format(isize, offset)
+
 
     mdirs = list(set(mdirs))
+    mdirs.sort()
 
-    with open(join(dest, 'libfilemap.so'), 'w') as fd:
+    with open(join('libs', 'armeabi', 'libfilemap.so'), 'wb') as fd:
         for k, v in mfiles.items():
-            fd.write('f{};{}\n'.format(k, v))
+            fd.write('f{};{};{};{}\n'.format(k, v[0], v[1], v[2]))
+        for k, v in mlibs.items():
+            fd.write('l{};{}\n'.format(k, v))
         for f in mdirs:
             fd.write('d{}\n'.format(f))
 
@@ -345,12 +363,12 @@ def make_package(args):
 
     # Package up the private and public data.
     if args.private:
-        make_raw('libs/armeabi/', ['private', args.private])
+        make_raw('assets/', ['private', args.private])
     else:
-        make_raw('libs/armeabi/', ['private'])
+        make_raw('assets/', ['private'])
 
     if args.dir:
-        make_raw('libs/armeabi/', [args.dir], args.ignore_path)
+        make_raw('assets/', [args.dir], args.ignore_path)
 
     # Copy over the icon and presplash files.
     shutil.copy(args.icon or default_icon, 'res/drawable/icon.png')
