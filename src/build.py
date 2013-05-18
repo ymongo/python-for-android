@@ -247,8 +247,8 @@ def make_raw(dest, source_dirs, ignore_path=[]):
                 with open(fn, 'rb') as fd:
                     data = fd.read()
                 isize += len(data)
-                #zdata = zlib.compress(data, 1)
-                zdata = data
+                zdata = zlib.compress(data, 1)
+                #zdata = data
                 print 'Add {} {} -> {}'.format(afn, len(data), len(zdata))
                 mfiles[afn] = (len(zdata), offset, len(data))
                 offset += len(zdata)
