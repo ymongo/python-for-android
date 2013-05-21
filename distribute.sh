@@ -28,6 +28,7 @@ PACKAGES_PATH="$ROOT_PATH/.packages"
 SRC_PATH="$ROOT_PATH/src"
 JNI_PATH="$SRC_PATH/jni"
 DIST_PATH="$ROOT_PATH/dist/default"
+INSTALL_PATH="$BUILD_PATH/install"
 
 # Tools
 export LIBLINK_PATH="$BUILD_PATH/objects"
@@ -333,6 +334,7 @@ function run_prepare() {
 	test -d $LIBS_PATH || mkdir -p $LIBS_PATH
 	test -d $JAVACLASS_PATH || mkdir -p $JAVACLASS_PATH
 	test -d $LIBLINK_PATH || mkdir -p $LIBLINK_PATH
+	test -d $INSTALL_PATH || mkdir -p $INSTALL_PATH
 
 	# create initial files
 	echo "target=android-$ANDROIDAPI" > $SRC_PATH/default.properties
