@@ -21,6 +21,7 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 
 import java.util.zip.GZIPInputStream;
 
@@ -73,6 +74,8 @@ public class PythonActivity extends Activity implements Runnable {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+		resultListeners = new ArrayList<ResultListener>();
 
         Hardware.context = this;
         Action.context = this;
@@ -371,6 +374,33 @@ public class PythonActivity extends Activity implements Runnable {
         PythonActivity.mActivity.stopService(serviceIntent);
     }
 
+
+	//----------------------------------------------------------------------------
+	// Activity results
+	//
+
+	// List of all listeners
+	private ArrayList<ResultListener> resultListeners = null;
+
+	public void registerResultListener(ResultListener listener) {
+		this.resultListeners.add(listener);
+	}
+
+	public void unregisterResultListener(ResultListener listener) {
+		this.resultListeners.remove(listener);
+	}
+
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        //Log.i("python", String.format("java onActivityResult() requestCode=%d resultCode=%d", requestCode, resultCode));
+		for (ResultListener listener : resultListeners) {
+			//Log.i("python", String.format("java onActivityResult() call one listener"));
+			listener.onActivityResult(requestCode, resultCode, data);
+		}
+	}
+
+	public interface ResultListener {
+		void onActivityResult(int requestCode, int resultCode, Intent data);
+	}
 
 
 	//----------------------------------------------------------------------------
