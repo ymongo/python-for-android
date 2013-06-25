@@ -28,12 +28,13 @@ function build_pyzmq() {
 	# fake try to be able to cythonize generated files
 	echo <<END >setup.cfg
 [global]
-zmq_prefix = /home/tito/code/python-for-android/build/install/
+zmq_prefix = $BUILD_PATH/install/
 have_sys_un_h = False
 END
 
-	bash
-	$BUILD_PATH/python-install/bin/python.host setup.py build_ext
+       $SHELL
+	$BUILD_PATH/python-install/bin/python.host setup.py build_ext --zmq=$BUILD_PATH/install/
+
 	try find build/lib.* -name "*.o" -exec $STRIP {} \;
 	try $BUILD_PATH/python-install/bin/python.host setup.py install -O2
 
