@@ -1,5 +1,11 @@
 package org.renpy.android;
 
+import org.libsdl.app.SDLActivity;
+
+public class PythonActivity extends SDLActivity {
+}
+
+/**
 import android.app.Activity;
 import android.content.Intent;
 import android.content.ActivityNotFoundException;
@@ -48,9 +54,6 @@ import android.content.Context;
 
 public class PythonActivity extends Activity implements Runnable {
     private static String TAG = "Python";
-
-    // The audio thread for streaming audio...
-    private static AudioThread mAudioThread = null;
 
     // The SDLSurfaceView we contain.
     public static SDLSurfaceView mView = null;
@@ -150,10 +153,6 @@ public class PythonActivity extends Activity implements Runnable {
         setContentView(mView);
     }
 
-    /**
-     * Show an error using a toast. (Only makes sense from non-UI
-     * threads.)
-     */
     public void toastError(final String msg) {
 
         final Activity thisActivity = this;
@@ -183,10 +182,6 @@ public class PythonActivity extends Activity implements Runnable {
     }
 
 
-    /**
-     * This determines if unpacking one the zip files included in
-     * the .apk is necessary. If it is, the zip file is unpacked.
-     */
     public void unpackData(final String resource, File target) {
 
         // The version of data in memory and on disk.
@@ -245,13 +240,13 @@ public class PythonActivity extends Activity implements Runnable {
         unpackData("private", getFilesDir());
         unpackData("public", externalStorage);
 
-        System.loadLibrary("sdl");
-        System.loadLibrary("sdl_image");
-        System.loadLibrary("sdl_ttf");
-        System.loadLibrary("sdl_mixer");
+        System.loadLibrary("SDL2");
+        System.loadLibrary("SDL2_image");
+        System.loadLibrary("SDL2_ttf");
+        System.loadLibrary("SDL2_mixer");
         System.loadLibrary("python2.7");
         System.loadLibrary("application");
-        System.loadLibrary("sdl_main");
+		//System.loadLibrary("sdl_main");
 
         System.load(getFilesDir() + "/lib/python2.7/lib-dynload/_io.so");
         System.load(getFilesDir() + "/lib/python2.7/lib-dynload/unicodedata.so");
@@ -267,11 +262,6 @@ public class PythonActivity extends Activity implements Runnable {
             System.load(getFilesDir() + "/lib/python2.7/lib-dynload/_imagingft.so");
             System.load(getFilesDir() + "/lib/python2.7/lib-dynload/_imagingmath.so");
         } catch(UnsatisfiedLinkError e) {
-        }
-
-        if ( mAudioThread == null ) {
-            Log.i("python", "Starting audio thread");
-            mAudioThread = new AudioThread(this);
         }
 
         runOnUiThread(new Runnable () {
@@ -501,13 +491,6 @@ public class PythonActivity extends Activity implements Runnable {
         }
     }
 
-    /**
-     * If the database has not been initialized, we send a
-     * RESTORE_TRANSACTIONS request to Android Market to get the list of purchased items
-     * for this user. This happens if the application has just been installed
-     * or the user wiped data. We do not want to do this on every startup, rather, we want to do
-     * only when the database needs to be initialized.
-     */
     private void restoreDatabase() {
         SharedPreferences prefs = getPreferences(MODE_PRIVATE);
         boolean initialized = prefs.getBoolean(DB_INITIALIZED, false);
@@ -515,8 +498,6 @@ public class PythonActivity extends Activity implements Runnable {
             mBillingService.restoreTransactions();
         }
     }
-
-    /** An array of product list entries for the products that can be purchased. */
 
     private enum Managed { MANAGED, UNMANAGED, SUBSCRIPTION }
 
@@ -622,4 +603,4 @@ public class PythonActivity extends Activity implements Runnable {
     }
 
 }
-
+**/

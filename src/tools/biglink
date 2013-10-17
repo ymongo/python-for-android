@@ -29,6 +29,7 @@ for fn in sofiles:
     args.append(afn)
     with open(libsfn) as fd:
         data = fd.read()
+        print(libsfn, data)
         args.extend(data.split(" "))
 
 unique_args = [ ]
@@ -37,6 +38,8 @@ while args:
     if a in ('-L', ):
         continue
     if a not in unique_args:
+        if a == '-lsdl':
+            continue
         unique_args.insert(0, a)
 
 

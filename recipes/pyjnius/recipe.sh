@@ -2,7 +2,8 @@
 
 VERSION_pyjnius=${VERSION_pyjnius:-master}
 URL_pyjnius=https://github.com/kivy/pyjnius/zipball/$VERSION_pyjnius/pyjnius-$VERSION_pyjnius.zip
-DEPS_pyjnius=(python sdl)
+DEPS_pyjnius=(python)
+DEPS_OPTIONAL_pyjnius=(sdl sdl2)
 MD5_pyjnius=
 BUILD_pyjnius=$BUILD_PATH/pyjnius/$(get_directory $URL_pyjnius)
 RECIPE_pyjnius=$RECIPES_PATH/pyjnius
@@ -13,8 +14,7 @@ function prebuild_pyjnius() {
 
 function build_pyjnius() {
 	if [ -d "$BUILD_PATH/python-install/lib/python2.7/site-packages/jnius" ]; then
-		#return
-		true
+		return
 	fi
 
 	cd $BUILD_pyjnius

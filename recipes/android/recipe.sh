@@ -2,7 +2,8 @@
 
 VERSION_android=
 URL_android=
-DEPS_android=(pygame)
+DEPS_android=
+DEPS_OPTIONAL_android=(sdl sdl2)
 MD5_android=
 BUILD_android=$BUILD_PATH/android/android
 RECIPE_android=$RECIPES_PATH/android
