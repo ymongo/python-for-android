@@ -2,7 +2,7 @@
 
 VERSION_plyer=${VERSION_plyer:-master}
 URL_plyer=https://github.com/kivy/plyer/zipball/$VERSION_plyer/plyer-$VERSION_plyer.zip
-DEPS_plyer=(pyjnius android)
+DEPS_plyer=(pyjnius)
 MD5_plyer=
 BUILD_plyer=$BUILD_PATH/plyer/$(get_directory $URL_plyer)
 RECIPE_plyer=$RECIPES_PATH/plyer

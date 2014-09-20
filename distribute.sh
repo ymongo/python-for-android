@@ -63,6 +63,8 @@ BOOTSTRAP_COMMON_PATH="$BOOTSTRAP_PATH/common"
 export LIBLINK_PATH="$BUILD_PATH/objects"
 export LIBLINK="$ROOT_PATH/tools/liblink"
 export BIGLINK="$ROOT_PATH/tools/biglink"
+export LIBLINK=ld
+export BIGLING=true
 export PIP=$PIP_NAME
 export VIRTUALENV=$VIRTUALENV_NAME
 

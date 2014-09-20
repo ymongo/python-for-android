@@ -13,7 +13,12 @@
 #endif
 
 struct android_app *g_state = NULL;
+static JNIEnv *g_env = NULL;
 
+
+JNIEnv *minimal_get_jnienv() {
+	return g_env;
+}
 
 static PyObject *androidembed_poll(PyObject *self, PyObject *args) {
     int indent;
@@ -96,6 +101,8 @@ void android_main(struct android_app* state) {
     //env_argument = getenv("ANDROID_ARGUMENT");
     //setenv("ANDROID_APP_PATH", env_argument, 1);
     //setenv("PYTHONVERBOSE", "2", 1);
+	setenv("PYJNIUS_JNIENV_SYMBOL", "minimal_get_jnienv", 1);
+	setenv("ANDROID_ARGUMENT", "", 1);  // needed for plyer
     Py_SetProgramName("python-android");
     Py_Initialize();
     //PySys_SetArgv(argc, argv);
@@ -108,23 +115,22 @@ void android_main(struct android_app* state) {
 
     // get the APK filename, and set it to ANDROID_APK_FN
     ANativeActivity* activity = state->activity;
-    JNIEnv* env = NULL;
-    (*activity->vm)->AttachCurrentThread(activity->vm, &env, 0);
-    jclass clazz = (*env)->GetObjectClass(env, activity->clazz);
-    jmethodID methodID = (*env)->GetMethodID(env, clazz, "getPackageCodePath", "()Ljava/lang/String;");
-    jobject result = (*env)->CallObjectMethod(env, activity->clazz, methodID);
+    (*activity->vm)->AttachCurrentThread(activity->vm, &g_env, 0);
+    jclass clazz = (*g_env)->GetObjectClass(g_env, activity->clazz);
+    jmethodID methodID = (*g_env)->GetMethodID(g_env, clazz, "getPackageCodePath", "()Ljava/lang/String;");
+    jobject result = (*g_env)->CallObjectMethod(g_env, activity->clazz, methodID);
     const char* str;
     jboolean isCopy;
-    str = (*env)->GetStringUTFChars(env, (jstring)result, &isCopy);
+    str = (*g_env)->GetStringUTFChars(g_env, (jstring)result, &isCopy);
     LOGI("Looked up package code path: %s", str);
     setenv("ANDROID_APK_FN", str, 1);
 
-    methodID = (*env)->GetMethodID(env, clazz, "getApplicationInfo", "()Landroid/content/pm/ApplicationInfo;");
-    jobject appInfo = (*env)->CallObjectMethod(env, activity->clazz, methodID);
-    jfieldID fieldID = (*env)->GetFieldID(env,
-        (*env)->GetObjectClass(env, appInfo), "nativeLibraryDir", "Ljava/lang/String;");
-    result = (*env)->GetObjectField(env, appInfo, fieldID);
-    str = (*env)->GetStringUTFChars(env, (jstring)result, &isCopy);
+    methodID = (*g_env)->GetMethodID(g_env, clazz, "getApplicationInfo", "()Landroid/content/pm/ApplicationInfo;");
+    jobject appInfo = (*g_env)->CallObjectMethod(g_env, activity->clazz, methodID);
+    jfieldID fieldID = (*g_env)->GetFieldID(g_env,
+        (*g_env)->GetObjectClass(g_env, appInfo), "nativeLibraryDir", "Ljava/lang/String;");
+    result = (*g_env)->GetObjectField(g_env, appInfo, fieldID);
+    str = (*g_env)->GetStringUTFChars(g_env, (jstring)result, &isCopy);
     LOGI("Looked up library code path: %s", str);
     setenv("ANDROID_LIB_PATH", str, 1);
 
