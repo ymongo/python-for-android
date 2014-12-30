@@ -88,6 +88,7 @@ sysconfig.get_config_h_filename = lambda: pyconfig_fn
 #
 
 import imp
+import os
 from os.path import join, exists
 
 ANDROID_LIB_PATH = posix.environ["ANDROID_LIB_PATH"]
@@ -115,9 +116,21 @@ class CustomBuiltinImporter(object):
 
 sys.meta_path.append(CustomBuiltinImporter())
 
+#
+# Step 5: fix some modules
+#
+
+# tempfile: https://github.com/kivy/python-for-android/issues/289
+tempdir_name = posix.environ["ANDROID_EXTERNAL_DATA_PATH"]+'/tmp'
+if not exists(tempdir_name):
+    tempdir = os.mkdir(tempdir_name, 770)
+os.environ['TMPDIR'] = tempdir_name
+
+# _scproxy: https://github.com/kivy/python-for-android/issues/186
+sys.platform = 'linux2'
 
 #
-# Step 4: bootstrap the application !
+# Step 6: bootstrap the application !
 #
 
 main_module = sys.argv[1]
