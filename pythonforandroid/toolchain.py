@@ -50,17 +50,20 @@ sys.path.insert(0, join(toolchain_dir, "tools", "external"))
 
 DEFAULT_ANDROID_API = 15
 
+
 class LevelDifferentiatingFormatter(logging.Formatter):
     def format(self, record):
         if record.levelno > 20:
             record.msg = '{}{}[WARNING]{}{}: '.format(
-                Style.BRIGHT, Fore.RED, Fore.RESET, Style.RESET_ALL) + record.msg
+                Style.BRIGHT, Fore.RED, Fore.RESET, Style.RESET_ALL
+            ) + record.msg
         elif record.levelno > 10:
             record.msg = '{}[INFO]{}:    '.format(
                 Style.BRIGHT, Style.RESET_ALL) + record.msg
         else:
             record.msg = '{}{}[DEBUG]{}{}:   '.format(
-                Style.BRIGHT, Fore.LIGHTBLACK_EX, Fore.RESET, Style.RESET_ALL) + record.msg
+                Style.BRIGHT, Fore.LIGHTBLACK_EX, Fore.RESET, Style.RESET_ALL
+            ) + record.msg
         return super(LevelDifferentiatingFormatter, self).format(record)
 
 logger = logging.getLogger('p4a')
@@ -81,19 +84,23 @@ warning = logger.warning
 IS_PY3 = sys.version_info[0] >= 3
 
 info(''.join([Style.BRIGHT, Fore.RED,
-              'This python-for-android revamp is an experimental alpha release!',
+              'This python-for-android revamp is an experimental alpha '
+              'release!',
               Style.RESET_ALL]))
 info(''.join([Fore.RED,
               ('It should work (mostly), but you may experience '
                'missing features or bugs.'),
               Style.RESET_ALL]))
 
+
 def info_main(*args):
     logger.info(''.join([Style.BRIGHT, Fore.GREEN] + list(args) +
                         [Style.RESET_ALL, Fore.RESET]))
 
+
 def info_notify(s):
     info('{}{}{}{}'.format(Style.BRIGHT, Fore.LIGHTBLUE_EX, s, Style.RESET_ALL))
+
 
 def pretty_log_dists(dists, log_func=info):
     infos = []
@@ -106,6 +113,7 @@ def pretty_log_dists(dists, log_func=info):
 
     for line in infos:
         log_func('\t' + line)
+
 
 def shprint(command, *args, **kwargs):
     '''Runs the command (which should be an sh.Command instance), while
@@ -124,7 +132,8 @@ def shprint(command, *args, **kwargs):
     if logger.level > logging.DEBUG:
         short_string = string
         if len(string) > 100:
-            short_string = string[:100] + '... (and {} more)'.format(len(string) - 100)
+            short_string = string[:100] + '... (and {} more)'.format(
+                len(string) - 100)
         logger.info(short_string + Style.RESET_ALL)
     else:
         logger.debug(string + Style.RESET_ALL)
@@ -169,8 +178,9 @@ def require_prebuilt_dist(func):
                                       user_ndk_ver=self.ndk_version)
         dist = self._dist
         if dist.needs_build:
-            info_notify('No dist exists that meets your requirements, so one will '
-                        'be built.')
+            info_notify(
+                'No dist exists that meets your requirements, so one '
+                'will be built.')
             args = build_dist_from_args(ctx, dist, args)
         func(self, args)
     return wrapper_func
@@ -192,9 +202,11 @@ def get_directory(filename):
     info('Unknown file extension for {}'.format(filename))
     exit(1)
 
+
 def which(program, path_env):
     '''Locate an executable in the system.'''
     import os
+
     def is_exe(fpath):
         return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
 
@@ -224,7 +236,6 @@ def current_directory(new_dir):
     chdir(cur_dir)
 
 
-
 def cache_execution(f):
     def _cache_execution(self, *args, **kwargs):
         state = self.ctx.state
@@ -235,7 +246,8 @@ def cache_execution(f):
                 key += ".{}".format(arg)
         key_time = "{}.at".format(key)
         if key in state and not force:
-            print("# (ignored) {} {}".format(f.__name__.capitalize(), self.name))
+            print("# (ignored) {} {}".format(
+                f.__name__.capitalize(), self.name))
             return
         print("{} {}".format(f.__name__.capitalize(), self.name))
         f(self, *args, **kwargs)
@@ -303,6 +315,7 @@ class JsonStore(object):
             with io.open(self.filename, 'w', encoding='utf-8') as fd:
                 fd.write(unicode(json.dumps(self.data, ensure_ascii=False)))
 
+
 class Arch(object):
     def __init__(self, ctx):
         super(Arch, self).__init__()
@@ -318,7 +331,6 @@ class Arch(object):
                 self.ctx.include_dir,
                 d.format(arch=self))
             for d in self.ctx.include_dirs]
-
 
     def get_env(self):
         include_dirs = [
@@ -373,16 +385,19 @@ class Arch(object):
         hostpython_recipe = Recipe.get_recipe('hostpython2', self.ctx)
 
         # AND: This hardcodes python version 2.7, needs fixing
-        # AND: This also hardcodes armeabi, which isn't even correct, don't forget to fix!
-        env['BUILDLIB_PATH'] = join(hostpython_recipe.get_build_dir('armeabi'),
-                                    'build', 'lib.linux-{}-2.7'.format(uname()[-1]))
+        # AND: This also hardcodes armeabi, which isn't even correct,
+        # don't forget to fix!
+        env['BUILDLIB_PATH'] = join(
+            hostpython_recipe.get_build_dir('armeabi'),
+            'build', 'lib.linux-{}-2.7'.format(uname()[-1]))
 
         env['PATH'] = environ['PATH']
 
         # AND: This stuff is set elsewhere in distribute.sh. Does that matter?
         env['ARCH'] = self.arch
 
-        # env['LIBLINK_PATH'] = join(self.ctx.build_dir, 'other_builds', 'objects')
+        # env['LIBLINK_PATH'] = join(self.ctx.build_dir, 'other_builds',
+        # 'objects')
         # ensure_dir(env['LIBLINK_PATH'])  # AND: This should be elsewhere
 
         return env
@@ -435,7 +450,8 @@ class Graph(object):
         '''Removes possible graphs if they are equivalent to others.'''
         graphs = self.graphs
         initial_num_graphs = len(graphs)
-        # Walk the list backwards so that popping elements doesn't mess up indexing
+        # Walk the list backwards so that popping elements doesn't mess
+        # up indexing
         for i in range(len(graphs) - 1):
             graph = graphs[initial_num_graphs - 1 - i]
             for j in range(1, len(graphs)):
@@ -530,7 +546,8 @@ class Context(object):
     env = environ.copy()
     root_dir = None  # the filepath of toolchain.py
     storage_dir = None  # the root dir where builds and dists will be stored
-    build_dir = None  # in which bootstraps are copied for building and recipes are built
+    build_dir = None  # in which bootstraps are copied for building and
+                      # recipes are built
     dist_dir = None  # the Android project folder where everything ends up
     libs_dir = None  # where Android libs are cached after build but
                      # before being placed in dists
@@ -558,14 +575,20 @@ class Context(object):
     @property
     def libs_dir(self):
         # Was previously hardcoded as self.build_dir/libs
-        dir = join(self.build_dir, 'libs_collections', self.bootstrap.distribution.name)
+        dir = join(
+            self.build_dir,
+            'libs_collections',
+            self.bootstrap.distribution.name)
         ensure_dir(dir)
         return dir
 
     @property
     def javaclass_dir(self):
         # Was previously hardcoded as self.build_dir/java
-        dir = join(self.build_dir, 'javaclasses', self.bootstrap.distribution.name)
+        dir = join(
+            self.build_dir,
+            'javaclasses',
+            self.bootstrap.distribution.name)
         ensure_dir(dir)
         return dir
 
@@ -592,7 +615,6 @@ class Context(object):
         ensure_dir(self.storage_dir)
         ensure_dir(self.build_dir)
         ensure_dir(self.dist_dir)
-
 
     @property
     def android_api(self):
@@ -722,7 +744,6 @@ class Context(object):
         # AND: If the android api target doesn't exist, we should
         # offer to install it here
 
-
         # Find the Android NDK
         # Could also use ANDROID_NDK, but doesn't look like many tools use this
         ndk_dir = None
@@ -758,7 +779,6 @@ class Context(object):
             warning('Android NDK dir was not specified, exiting.')
             exit(1)
         self.ndk_dir = realpath(ndk_dir)
-
 
         # Find the NDK version, and check it against what the NDK dir
         # seems to report
@@ -851,9 +871,15 @@ class Context(object):
         if os.path.isdir(toolchain_path):
             toolchain_contents = os.listdir(toolchain_path)
             for toolchain_content in toolchain_contents:
-                if toolchain_content.startswith(toolchain_prefix) and os.path.isdir(os.path.join(toolchain_path, toolchain_content)):
-                    toolchain_version = toolchain_content[len(toolchain_prefix)+1:]
-                    debug('Found toolchain version: {}'.format(toolchain_version))
+                if (
+                        toolchain_content.startswith(toolchain_prefix) and
+                        os.path.isdir(
+                            os.path.join(toolchain_path, toolchain_content))
+                ):
+                    toolchain_version = toolchain_content[
+                        len(toolchain_prefix)+1:]
+                    debug('Found toolchain version: {}'.format(
+                        toolchain_version))
                     toolchain_versions.append(toolchain_version)
         else:
             warning('Could not find toolchain subdirectory!')
@@ -862,33 +888,38 @@ class Context(object):
 
         toolchain_versions_gcc = []
         for toolchain_version in toolchain_versions:
-            if toolchain_version[0].isdigit(): # GCC toolchains begin with a number
+            # GCC toolchains begin with a number
+            if toolchain_version[0].isdigit():
                 toolchain_versions_gcc.append(toolchain_version)
 
         if toolchain_versions:
-            info('Found the following toolchain versions: {}'.format(toolchain_versions))
-            info('Picking the latest gcc toolchain, here {}'.format(toolchain_versions_gcc[-1]))
+            info('Found the following toolchain versions: {}'
+                 .format(toolchain_versions))
+            info('Picking the latest gcc toolchain, here {}'
+                 .format(toolchain_versions_gcc[-1]))
             toolchain_version = toolchain_versions_gcc[-1]
         else:
-            warning('Could not find any toolchain for {}!'.format(toolchain_prefix))
+            warning('Could not find any toolchain for {}!'
+                    .format(toolchain_prefix))
             ok = False
 
         self.toolchain_prefix = toolchain_prefix
         self.toolchain_version = toolchain_version
-        environ['PATH'] = ('{ndk_dir}/toolchains/{toolchain_prefix}-{toolchain_version}/'
-                           'prebuilt/{py_platform}-x86/bin/:{ndk_dir}/toolchains/'
-                           '{toolchain_prefix}-{toolchain_version}/prebuilt/'
-                           '{py_platform}-x86_64/bin/:{ndk_dir}:{sdk_dir}/'
-                           'tools:{path}').format(
-                               sdk_dir=self.sdk_dir, ndk_dir=self.ndk_dir,
-                               toolchain_prefix=toolchain_prefix,
-                               toolchain_version=toolchain_version,
-                               py_platform=py_platform, path=environ.get('PATH'))
+        environ['PATH'] = (
+            '{ndk_dir}/toolchains/{toolchain_prefix}-{toolchain_version}/'
+            'prebuilt/{py_platform}-x86/bin/:{ndk_dir}/toolchains/'
+            '{toolchain_prefix}-{toolchain_version}/prebuilt/'
+            '{py_platform}-x86_64/bin/:{ndk_dir}:{sdk_dir}/'
+            'tools:{path}').format(
+                sdk_dir=self.sdk_dir, ndk_dir=self.ndk_dir,
+                toolchain_prefix=toolchain_prefix,
+                toolchain_version=toolchain_version,
+                py_platform=py_platform, path=environ.get('PATH'))
 
         # AND: Are these necessary? Where to check for and and ndk-build?
         # check the basic tools
         for executable in ("pkg-config", "autoconf", "automake", "libtoolize",
-                     "tar", "bzip2", "unzip", "make", "gcc", "g++"):
+                           "tar", "bzip2", "unzip", "make", "gcc", "g++"):
             if not sh.which(executable):
                 warning("Missing executable: {} is not installed".format(
                     executable))
@@ -919,7 +950,8 @@ class Context(object):
             )
 
         ensure_dir(join(self.build_dir, 'bootstrap_builds'))
-        ensure_dir(join(self.build_dir, 'other_builds'))  # where everything else is built
+        # where everything else is built
+        ensure_dir(join(self.build_dir, 'other_builds'))
 
         # # remove the most obvious flags that can break the compilation
         self.env.pop("LDFLAGS", None)
@@ -947,7 +979,8 @@ class Context(object):
         # AND: This *must* be replaced with something more general in
         # order to support multiple python versions and/or multiple
         # archs.
-        return join(self.get_python_install_dir(), 'lib', 'python2.7', 'site-packages')
+        return join(self.get_python_install_dir(),
+                    'lib', 'python2.7', 'site-packages')
 
     def get_libs_dir(self, arch):
         '''The libs dir for a given arch.'''
@@ -1052,14 +1085,19 @@ class Distribution(object):
         else:
             info('No existing dists meet the given requirements!')
 
-
         # If any dist has perfect recipes, return it
         for dist in possible_dists:
             if force_build:
                 continue
-            if (set(dist.recipes) == set(recipes) or
-                (set(recipes).issubset(set(dist.recipes)) and not require_perfect_match)):
-                info_notify('{} has compatible recipes, using this one'.format(dist.name))
+            if (
+                set(dist.recipes) == set(recipes) or
+                (
+                    set(recipes).issubset(set(dist.recipes)) and
+                    not require_perfect_match
+                )
+            ):
+                info_notify('{} has compatible recipes, using this one'
+                            .format(dist.name))
                 return dist
 
         assert len(possible_dists) < 2
@@ -1067,7 +1105,9 @@ class Distribution(object):
         if not name and possible_dists:
             info('Asked for dist with name {} with recipes ({}), but a dist '
                  'with this name already exists and has incompatible recipes '
-                 '({})'.format(name, ', '.join(recipes), ', '.join(possible_dists[0].recipes)))
+                 '({})'.format(
+                     name, ', '.join(recipes), ', '.join(
+                         possible_dists[0].recipes)))
             info('No compatible dist found, so exiting.')
             exit(1)
 
@@ -1091,7 +1131,6 @@ class Distribution(object):
         #         _possible_dists.append(dist)
         # # if _possible_dists
 
-
         # If we got this far, we need to build a new dist
         dist = Distribution(ctx)
         dist.needs_build = True
@@ -1109,12 +1148,12 @@ class Distribution(object):
 
         return dist
 
-
     @classmethod
     def get_distributions(cls, ctx, extra_dist_dirs=[]):
         '''Returns all the distributions found locally.'''
         if extra_dist_dirs:
-            warning('extra_dist_dirs argument to get_distributions is not yet implemented')
+            warning('extra_dist_dirs argument to get_distributions is '
+                    'not yet implemented')
             exit(1)
         dist_dir = ctx.dist_dir
         folders = glob.glob(join(dist_dir, '*'))
@@ -1127,17 +1166,14 @@ class Distribution(object):
                 with open(join(folder, 'dist_info.json')) as fileh:
                     dist_info = json.load(fileh)
                 dist = cls(ctx)
-                dist.name = folder.split('/')[-1]  # AND: also equal
-                                                   # to
-                                                   # dist_info['dist_name']...which
-                                                   # one should we
-                                                   # use?
+                dist.name = folder.split('/')[-1]
+                # AND: also equal
+                # to dist_info['dist_name']...which one should we use?
                 dist.dist_dir = folder
                 dist.needs_build = False
                 dist.recipes = dist_info['recipes']
                 dists.append(dist)
         return dists
-
 
     def save_info(self):
         '''
@@ -1199,7 +1235,6 @@ class Bootstrap(object):
             exit(1)
         return self.distribution.dist_dir
 
-
     @property
     def jni_dir(self):
         return self.name + self.jni_subdir
@@ -1234,7 +1269,8 @@ class Bootstrap(object):
         ensure_dir(self.dist_dir)
 
     def run_distribute(self):
-        # print('Default bootstrap being used doesn\'t know how to distribute...failing.')
+        # print('Default bootstrap being used doesn\'t know how to
+        # distribute...failing.')
         # exit(1)
         with current_directory(self.dist_dir):
             info('Saving distribution info')
@@ -1266,7 +1302,8 @@ class Bootstrap(object):
         '''Returns a bootstrap whose recipe requirements do not conflict with
         the given recipes.'''
         info('Trying to find a bootstrap that matches the given recipes.')
-        bootstraps = [cls.get_bootstrap(name, ctx) for name in cls.list_bootstraps()]
+        bootstraps = [cls.get_bootstrap(name, ctx)
+                      for name in cls.list_bootstraps()]
         acceptable_bootstraps = []
         for bs in bootstraps:
             ok = True
@@ -1279,20 +1316,20 @@ class Bootstrap(object):
                     break
             for recipe in recipes:
                 recipe = Recipe.get_recipe(recipe, ctx)
-                if any([conflict in bs.recipe_depends for conflict in recipe.conflicts]):
+                if any([conflict in bs.recipe_depends
+                       for conflict in recipe.conflicts]):
                     ok = False
                     break
             if ok:
                 acceptable_bootstraps.append(bs)
         info('Found {} acceptable bootstraps: {}'.format(
-            len(acceptable_bootstraps), [bs.name for bs in acceptable_bootstraps]))
+            len(acceptable_bootstraps),
+            [bs.name for bs in acceptable_bootstraps]))
         if acceptable_bootstraps:
-            info('Using the first of these: {}'.format(acceptable_bootstraps[0].name))
+            info('Using the first of these: {}'
+                 .format(acceptable_bootstraps[0].name))
             return acceptable_bootstraps[0]
         return None
-
-
-
 
     @classmethod
     def get_bootstrap(cls, name, ctx):
@@ -1309,7 +1346,8 @@ class Bootstrap(object):
             cls.bootstraps = {}
         if name in cls.bootstraps:
             return cls.bootstraps[name]
-        mod = importlib.import_module('pythonforandroid.bootstraps.{}'.format(name))
+        mod = importlib.import_module(
+            'pythonforandroid.bootstraps.{}'.format(name))
         if len(logger.handlers) > 1:
             logger.removeHandler(logger.handlers[1])
         bootstrap = mod.bootstrap
@@ -1337,7 +1375,6 @@ class Recipe(object):
     '''A string giving the version of the software the recipe describes,
     e.g. ``2.0.3`` or ``master``.'''
 
-
     md5sum = None
     '''The md5sum of the source from the :attr:`url`. Non-essential, but
     you should try to include this, it is used to check that the download
@@ -1357,7 +1394,6 @@ class Recipe(object):
     recipe if they are built at all, but whose presence is not essential.'''
 
     archs = ['armeabi']  # Not currently implemented properly
-
 
     @property
     def versioned_url(self):
@@ -1426,8 +1462,9 @@ class Recipe(object):
                 zf.close()
 
             else:
-                warning("Error: cannot extract, unrecognized extension for {}".format(
-                    source))
+                warning(
+                    "Error: cannot extract, unrecognized extension for {}"
+                    .format(source))
                 raise Exception()
 
         elif os.path.isdir(source):
@@ -1436,8 +1473,9 @@ class Recipe(object):
             shprint(sh.cp, '-a', source, cwd)
 
         else:
-            warning("Error: cannot extract or copy, unrecognized path {}".format(
-                source))
+            warning(
+                "Error: cannot extract or copy, unrecognized path {}"
+                .format(source))
             raise Exception()
 
     # def get_archive_rootdir(self, filename):
@@ -1462,7 +1500,8 @@ class Recipe(object):
         info("Applying patch {}".format(filename))
         filename = join(self.recipe_dir, filename)
         # AND: get_build_dir shouldn't need to hardcode armeabi
-        sh.patch("-t", "-d", self.get_build_dir('armeabi'), "-p1", "-i", filename)
+        sh.patch("-t", "-d", self.get_build_dir('armeabi'),
+                 "-p1", "-i", filename)
 
     def copy_file(self, filename, dest):
         info("Copy {} to {}".format(filename, dest))
@@ -1501,7 +1540,6 @@ class Recipe(object):
     #     except:
     #         pass
 
-
     @property
     def name(self):
         '''The name of the recipe, the same as the folder containing it.'''
@@ -1518,7 +1556,8 @@ class Recipe(object):
 
     @property
     def filtered_archs(self):
-        '''Return archs of self.ctx that are valid build archs for the Recipe.'''
+        '''Return archs of self.ctx that are valid build archs for the Recipe.
+        '''
         result = []
         for arch in self.ctx.archs:
             if not self.archs or (arch.arch in self.archs):
@@ -1527,7 +1566,8 @@ class Recipe(object):
 
     def check_recipe_choices(self):
         '''Checks what recipes are being built to see which of the alternative
-        and optional dependencies are being used, and returns a list of these.'''
+        and optional dependencies are being used, and returns a list of these.
+        '''
         recipes = []
         built_recipes = self.ctx.recipe_build_order
         for recipe in self.depends:
@@ -1608,7 +1648,8 @@ class Recipe(object):
                     exit(1)
                 else:
                     do_download = False
-                    info('{} download already cached, skipping'.format(self.name))
+                    info('{} download already cached, skipping'
+                         .format(self.name))
 
             # Should check headers here!
             warning('Should check headers here! Skipping for now.')
@@ -1644,7 +1685,8 @@ class Recipe(object):
             shprint(sh.mkdir, '-p', build_dir)
             shprint(sh.rmdir, build_dir)
             ensure_dir(build_dir)
-            # shprint(sh.ln, '-s', user_dir, join(build_dir, get_directory(self.versioned_url)))
+            # shprint(sh.ln, '-s', user_dir, join(build_dir,
+            # get_directory(self.versioned_url)))
             shprint(sh.git, 'clone', user_dir, self.get_build_dir('armeabi'))
             return
 
@@ -1652,7 +1694,8 @@ class Recipe(object):
             info('Skipping {} unpack as no URL is set'.format(self.name))
             return
 
-        filename = shprint(sh.basename, self.versioned_url).stdout[:-1].decode('utf-8')
+        filename = shprint(
+            sh.basename, self.versioned_url).stdout[:-1].decode('utf-8')
 
         # AND: TODO: Use tito's better unpacking method
         with current_directory(build_dir):
@@ -1660,10 +1703,12 @@ class Recipe(object):
 
             # AND: Could use tito's get_archive_rootdir here
             if not exists(directory_name) or not isdir(directory_name):
-                extraction_filename = join(self.ctx.packages_path, self.name, filename)
+                extraction_filename = join(
+                    self.ctx.packages_path, self.name, filename)
                 if os.path.isfile(extraction_filename):
                     if (extraction_filename.endswith('.tar.gz') or
-                        extraction_filename.endswith('.tgz')):
+                        extraction_filename.endswith('.tgz')
+                    ):
                         sh.tar('xzf', extraction_filename)
                         root_directory = shprint(
                             sh.tar, 'tzf', extraction_filename).stdout.decode(
@@ -1672,10 +1717,12 @@ class Recipe(object):
                             shprint(sh.mv, root_directory, directory_name)
                     elif (extraction_filename.endswith('.tar.bz2') or
                           extraction_filename.endswith('.tbz2')):
-                        info('Extracting {} at {}'.format(extraction_filename, filename))
+                        info('Extracting {} at {}'
+                             .format(extraction_filename, filename))
                         sh.tar('xjf', extraction_filename)
-                        root_directory = sh.tar('tjf', extraction_filename).stdout.decode(
-                                                'utf-8').split('\n')[0].split('/')[0]
+                        root_directory = sh.tar(
+                            'tjf', extraction_filename).stdout.decode(
+                            'utf-8').split('\n')[0].split('/')[0]
                         if root_directory != directory_name:
                             shprint(sh.mv, root_directory, directory_name)
                     elif extraction_filename.endswith('.zip'):
@@ -1686,19 +1733,23 @@ class Recipe(object):
                         if root_directory != directory_name:
                             shprint(sh.mv, root_directory, directory_name)
                     else:
-                        raise Exception('Could not extract {} download, it must be .zip, '
-                                        '.tar.gz or .tar.bz2')
+                        raise Exception(
+                            'Could not extract {} download, it must be .zip, '
+                            '.tar.gz or .tar.bz2')
                 elif os.path.isdir(extraction_filename):
                     os.mkdir(directory_name)
                     for entry in os.listdir(extraction_filename):
                         if entry not in ('.git',):
-                            shprint(sh.cp, '-Rv',  os.path.join(extraction_filename, entry), directory_name)
+                            shprint(sh.cp, '-Rv',
+                                    os.path.join(extraction_filename, entry),
+                                    directory_name)
                 else:
-                    raise Exception('Given path is neither a file nor a directory: {}'.format(extraction_filename))
+                    raise Exception(
+                        'Given path is neither a file nor a directory: {}'
+                        .format(extraction_filename))
 
             else:
                 info('{} is already unpacked, skipping'.format(self.name))
-
 
     def get_recipe_env(self, arch=None):
         """Return the env specialized for the recipe
@@ -1814,8 +1865,6 @@ class Recipe(object):
             warning(('Attempted to clean build for {} but build '
                      'did not exist').format(self.name))
 
-
-
     @classmethod
     def list_recipes(cls):
         forbidden_dirs = ('__pycache__', )
@@ -1831,14 +1880,15 @@ class Recipe(object):
     def get_recipe(cls, name, ctx):
         '''Returns the Recipe with the given name, if it exists.'''
         if not hasattr(cls, "recipes"):
-           cls.recipes = {}
+            cls.recipes = {}
         if name in cls.recipes:
             return cls.recipes[name]
         recipe_dir = join(ctx.root_dir, 'recipes', name)
         if not exists(recipe_dir):  # AND: This will need modifying
                                     # for user-supplied recipes
             raise IOError('Recipe folder does not exist')
-        mod = importlib.import_module("pythonforandroid.recipes.{}".format(name))
+        mod = importlib.import_module(
+            "pythonforandroid.recipes.{}".format(name))
         if len(logger.handlers) > 1:
             logger.removeHandler(logger.handlers[1])
         recipe = mod.recipe
@@ -1851,12 +1901,14 @@ class IncludedFilesBehaviour(object):
     '''Recipe mixin class that will automatically unpack files included in
     the recipe directory.'''
     src_filename = None
+
     def prepare_build_dir(self, arch):
         if self.src_filename is None:
             print('IncludedFilesBehaviour failed: no src_filename specified')
             exit(1)
         shprint(sh.cp, '-a', join(self.get_recipe_dir(), self.src_filename),
                 self.get_build_dir(arch))
+
 
 class NDKRecipe(Recipe):
     '''A recipe class for recipes built in an Android project jni dir with
@@ -1982,16 +2034,16 @@ class PythonRecipe(Recipe):
 
 class CompiledComponentsPythonRecipe(PythonRecipe):
     pre_build_ext = False
+
     def build_arch(self, arch):
         '''Build any cython components, then install the Python module by
         calling setup.py install with the target Python dir.
         '''
-        Recipe.build_arch(self, arch)  # AND: Having to directly call the
-                                 # method like this is nasty...could
-                                 # use tito's method of having an
-                                 # install method that always runs
-                                 # after everything else but isn't
-                                 # used by a normal recipe.
+        Recipe.build_arch(self, arch)
+        # AND: Having to directly call the method like this is
+        # nasty...could use tito's method of having an install method
+        # that always runs after everything else but isn't used by a
+        # normal recipe.
         self.build_compiled_components(arch)
         self.install_python_package()
 
@@ -2015,12 +2067,11 @@ class CythonRecipe(PythonRecipe):
         '''Build any cython components, then install the Python module by
         calling setup.py install with the target Python dir.
         '''
-        Recipe.build_arch(self, arch)  # AND: Having to directly call the
-                                 # method like this is nasty...could
-                                 # use tito's method of having an
-                                 # install method that always runs
-                                 # after everything else but isn't
-                                 # used by a normal recipe.
+        Recipe.build_arch(self, arch)
+        # AND: Having to directly call the method like this is
+        # nasty...could use tito's method of having an install method
+        # that always runs after everything else but isn't used by a
+        # normal recipe.
         self.build_cython_components(arch)
         self.install_python_package()
 
@@ -2039,8 +2090,8 @@ class CythonRecipe(PythonRecipe):
                 info('{} first build failed (as expected)'.format(self.name))
 
             info('Running cython where appropriate')
-            shprint(sh.find, self.get_build_dir('armeabi'), '-iname', '*.pyx', '-exec',
-                    self.ctx.cython, '{}', ';', _env=env)
+            shprint(sh.find, self.get_build_dir('armeabi'), '-iname',
+                    '*.pyx', '-exec', self.ctx.cython, '{}', ';', _env=env)
             info('ran cython')
 
             shprint(hostpython, 'setup.py', 'build_ext', '-v', _env=env)
@@ -2086,7 +2137,9 @@ class CythonRecipe(PythonRecipe):
 
         # Every recipe uses its own liblink path, object files are
         # collected and biglinked later
-        liblink_path = join(self.get_build_container_dir(arch.arch), 'objects_{}'.format(self.name))
+        liblink_path = join(
+            self.get_build_container_dir(arch.arch),
+            'objects_{}'.format(self.name))
         env['LIBLINK_PATH'] = liblink_path
         ensure_dir(liblink_path)
         return env
@@ -2097,8 +2150,9 @@ def build_recipes(build_order, python_modules, ctx):
     bs = ctx.bootstrap
     info_notify("Recipe build order is {}".format(build_order))
     if python_modules:
-        info_notify(('The requirements ({}) were not found as recipes, they will be '
-                     'installed with pip.').format(', '.join(python_modules)))
+        info_notify((
+            'The requirements ({}) were not found as recipes, they will be '
+            'installed with pip.').format(', '.join(python_modules)))
     ctx.recipe_build_order = build_order
 
     recipes = [Recipe.get_recipe(name, ctx) for name in build_order]
@@ -2129,7 +2183,8 @@ def build_recipes(build_order, python_modules, ctx):
             if recipe.should_build():
                 recipe.build_arch(arch)
             else:
-                info('{} said it is already built, skipping'.format(recipe.name))
+                info('{} said it is already built, skipping'
+                     .format(recipe.name))
 
         # 4) biglink everything
         # AND: Should make this optional (could use
@@ -2146,6 +2201,7 @@ def build_recipes(build_order, python_modules, ctx):
     run_pymodules_install(ctx, python_modules)
 
     return
+
 
 def run_pymodules_install(ctx, modules):
     if not modules:
@@ -2174,7 +2230,9 @@ def run_pymodules_install(ctx, modules):
         # It works but should be replaced with something better
         shprint(sh.bash, '-c', (
             "source venv/bin/activate && env CC=/bin/false CXX=/bin/false"
-            "PYTHONPATH= pip install --target '{}' -r requirements.txt").format(ctx.get_site_packages_dir()))
+            "PYTHONPATH= pip install --target '{}' -r requirements.txt")
+            .format(ctx.get_site_packages_dir()))
+
 
 def biglink(ctx, arch):
     # First, collate object files from each recipe
@@ -2186,11 +2244,13 @@ def biglink(ctx, arch):
         recipe_obj_dir = join(recipe.get_build_container_dir(arch.arch),
                               'objects_{}'.format(recipe.name))
         if not exists(recipe_obj_dir):
-            info('{} recipe has no biglinkable files dir, skipping'.format(recipe.name))
+            info('{} recipe has no biglinkable files dir, skipping'
+                 .format(recipe.name))
             continue
         files = glob.glob(join(recipe_obj_dir, '*'))
         if not len(files):
-            info('{} recipe has no biglinkable files, skipping'.format(recipe.name))
+            info('{} recipe has no biglinkable files, skipping'
+                 .format(recipe.name))
         info('{} recipe has object files, copying'.format(recipe.name))
         files.append(obj_dir)
         shprint(sh.cp, '-r', *files)
@@ -2206,12 +2266,15 @@ def biglink(ctx, arch):
         info('There seem to be no libraries to biglink, skipping.')
         return
     info('Biglinking')
-    info('target {}'.format(join(ctx.get_libs_dir(arch.arch), 'libpymodules.so')))
+    info('target {}'.format(join(ctx.get_libs_dir(arch.arch),
+         'libpymodules.so')))
     biglink_function(
         join(ctx.get_libs_dir(arch.arch), 'libpymodules.so'),
         obj_dir.split(' '),
-        extra_link_dirs=[join(ctx.bootstrap.build_dir, 'obj', 'local', 'armeabi')],
+        extra_link_dirs=[
+            join(ctx.bootstrap.build_dir, 'obj', 'local', 'armeabi')],
         env=env)
+
 
 def biglink_function(soname, objs_paths, extra_link_dirs=[], env=None):
     print('objs_paths are', objs_paths)
@@ -2274,6 +2337,7 @@ def ensure_dir(filename):
     if not exists(filename):
         makedirs(filename)
 
+
 def dist_from_args(ctx, dist_args):
     '''Parses out any distribution-related arguments, and uses them to
     obtain a Distribution class instance for the build.
@@ -2287,20 +2351,24 @@ def dist_from_args(ctx, dist_args):
         extra_dist_dirs=split_argument_list(dist_args.extra_dist_dirs),
         require_perfect_match=dist_args.require_perfect_match)
 
+
 def build_dist_from_args(ctx, dist, args_list):
     '''Parses out any bootstrap related arguments, and uses them to build
     a dist.'''
     parser = argparse.ArgumentParser(
         description='Create a newAndroid project')
-    parser.add_argument('--bootstrap', help=('The name of the bootstrap type, \'pygame\' '
-                                             'or \'sdl2\', or leave empty to let a '
-                                             'bootstrap be chosen automatically from your '
-                                             'requirements.'),
-                        default=None)
+    parser.add_argument(
+            '--bootstrap',
+            help=("The name of the bootstrap type, 'pygame' "
+                  "or 'sdl2', or leave empty to let a "
+                  "bootstrap be chosen automatically from your "
+                  "requirements."),
+            default=None)
     args, unknown = parser.parse_known_args(args_list)
 
     bs = Bootstrap.get_bootstrap(args.bootstrap, ctx)
-    build_order, python_modules, bs = get_recipe_order_and_bootstrap(ctx, dist.recipes, bs)
+    build_order, python_modules, bs = \
+        get_recipe_order_and_bootstrap(ctx, dist.recipes, bs)
 
     info('The selected bootstrap is {}'.format(bs.name))
     info_main('# Creating dist with {} bootstrap'.format(bs.name))
@@ -2317,9 +2385,11 @@ def build_dist_from_args(ctx, dist, args_list):
     ctx.bootstrap.run_distribute()
 
     info_main('# Your distribution was created successfully, exiting.')
-    info('Dist can be found at (for now) {}'.format(join(ctx.dist_dir, ctx.dist_name)))
+    info('Dist can be found at (for now) {}'
+         .format(join(ctx.dist_dir, ctx.dist_name)))
 
     return unknown
+
 
 def get_recipe_order_and_bootstrap(ctx, names, bs=None):
     '''Takes a list of recipe names and (optionally) a bootstrap. Then
@@ -2342,29 +2412,33 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
         try:
             recipe = Recipe.get_recipe(name, ctx)
         except IOError:
-            info('No recipe named {}; will attempt to install with pip'.format(name))
+            info('No recipe named {}; will attempt to install with pip'
+                 .format(name))
             python_modules.append(name)
             continue
         except (KeyboardInterrupt, SystemExit):
             raise
         except:
-           warning('Failed to import recipe named {}; the recipe exists '
-                   'but appears broken.'.format(name))
-           warning('Exception was:')
-           raise
+            warning('Failed to import recipe named {}; the recipe exists '
+                    'but appears broken.'.format(name))
+            warning('Exception was:')
+            raise
         graph.add(name, name)
         info('Loaded recipe {} (depends on {}{})'.format(
             name, recipe.depends,
-            ', conflicts {}'.format(recipe.conflicts) if recipe.conflicts else ''))
+            ', conflicts {}'.format(recipe.conflicts)
+            if recipe.conflicts else ''))
         for depend in recipe.depends:
             graph.add(name, depend)
             recipes_to_load += recipe.depends
         for conflict in recipe.conflicts:
             if graph.conflicts(conflict):
+                warning((
+                    '{} conflicts with {}, but both have been '
+                    'included or pulled into the requirements.'
+                    .format(recipe.name, conflict)))
                 warning(
-                    ('{} conflicts with {}, but both have been '
-                     'included or pulled into the requirements.'.format(recipe.name, conflict)))
-                warning('Due to this conflict the build cannot continue, exiting.')
+                    'Due to this conflict the build cannot continue, exiting.')
                 exit(1)
         recipe_loaded.append(name)
     graph.remove_remaining_conflicts(ctx)
@@ -2372,7 +2446,8 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
         info('Found multiple valid recipe sets:')
         for g in graph.graphs:
             info('    {}'.format(g.keys()))
-        info_notify('Using the first of these: {}'.format(graph.graphs[0].keys()))
+        info_notify('Using the first of these: {}'
+                    .format(graph.graphs[0].keys()))
     elif len(graph.graphs) == 0:
         warning('Didn\'t find any valid dependency graphs, exiting.')
         exit(1)
@@ -2387,11 +2462,14 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
                     # them.
         bs = Bootstrap.get_bootstrap_from_recipes(build_order, ctx)
         if bs is None:
-            info('Could not find a bootstrap compatible with the required recipes.')
+            info('Could not find a bootstrap compatible with the '
+                 'required recipes.')
             info('If you think such a combination should exist, try '
                  'specifying the bootstrap manually with --bootstrap.')
             exit(1)
-        info('{} bootstrap appears compatible with the required recipes.'.format(bs.name))
+
+        info('{} bootstrap appears compatible with the required recipes.'
+             .format(bs.name))
         info('Checking this...')
         recipes_to_load = bs.recipe_depends
         # This code repeats the code from earlier! Should move to a function:
@@ -2402,13 +2480,15 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
             try:
                 recipe = Recipe.get_recipe(name, ctx)
             except ImportError:
-                info('No recipe named {}; will attempt to install with pip'.format(name))
+                info('No recipe named {}; will attempt to install with pip'
+                     .format(name))
                 python_modules.append(name)
                 continue
             graph.add(name, name)
             info('Loaded recipe {} (depends on {}{})'.format(
                 name, recipe.depends,
-                ', conflicts {}'.format(recipe.conflicts) if recipe.conflicts else ''))
+                ', conflicts {}'.format(recipe.conflicts)
+                if recipe.conflicts else ''))
             for depend in recipe.depends:
                 graph.add(name, depend)
                 recipes_to_load += recipe.depends
@@ -2416,8 +2496,10 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
                 if graph.conflicts(conflict):
                     warning(
                         ('{} conflicts with {}, but both have been '
-                         'included or pulled into the requirements.'.format(recipe.name, conflict)))
-                    warning('Due to this conflict the build cannot continue, exiting.')
+                         'included or pulled into the requirements.'
+                         .format(recipe.name, conflict)))
+                    warning('Due to this conflict the build cannot '
+                            'continue, exiting.')
                     exit(1)
             recipe_loaded.append(name)
         graph.remove_remaining_conflicts(ctx)
@@ -2425,7 +2507,6 @@ def get_recipe_order_and_bootstrap(ctx, names, bs=None):
     return build_order, python_modules, bs
 
     # Do a final check that the new bs doesn't pull in any conflicts
-
 
 
 def split_argument_list(l):
@@ -2438,7 +2519,6 @@ class ToolchainCL(object):
 
     def __init__(self):
         self._ctx = None
-
 
         parser = argparse.ArgumentParser(
                 description="Tool for managing the Android / Python toolchain",
@@ -2465,18 +2545,22 @@ clean_dists
         parser.add_argument("command", help="Command to run")
 
         # General options
-        parser.add_argument('--debug', dest='debug', action='store_true',
-                            help='Display debug output and all build info')
-        parser.add_argument('--sdk_dir', dest='sdk_dir', default='',
-                            help='The filepath where the Android SDK is installed')
-        parser.add_argument('--ndk_dir', dest='ndk_dir', default='',
-                            help='The filepath where the Android NDK is installed')
-        parser.add_argument('--android_api', dest='android_api', default=0, type=int,
-                            help='The Android API level to build against.')
-        parser.add_argument('--ndk_version', dest='ndk_version', default='',
-                            help=('The version of the Android NDK. This is optional, '
-                                  'we try to work it out automatically from the ndk_dir.'))
-
+        parser.add_argument(
+            '--debug', dest='debug', action='store_true',
+            help='Display debug output and all build info')
+        parser.add_argument(
+            '--sdk_dir', dest='sdk_dir', default='',
+            help='The filepath where the Android SDK is installed')
+        parser.add_argument(
+            '--ndk_dir', dest='ndk_dir', default='',
+            help='The filepath where the Android NDK is installed')
+        parser.add_argument(
+            '--android_api', dest='android_api', default=0, type=int,
+            help='The Android API level to build against.')
+        parser.add_argument(
+            '--ndk_version', dest='ndk_version', default='',
+            help=('The version of the Android NDK. This is optional, '
+                  'we try to work it out automatically from the ndk_dir.'))
 
         # Options for specifying the Distribution
         parser.add_argument(
@@ -2484,7 +2568,8 @@ clean_dists
             default='')
         parser.add_argument(
             '--requirements',
-            help='Dependencies of your app, should be recipe names or Python modules',
+            help='Dependencies of your app, should be recipe names or '
+            'Python modules',
             default='')
         parser.add_argument(
             '--allow_download', help='Allow binary dist download.',
@@ -2496,13 +2581,14 @@ clean_dists
             '--force_build', help='Force compilation of a new distribution.',
             default=False, type=bool)
         parser.add_argument(
-            '--extra_dist_dirs', help='Directories in which to look for distributions',
+            '--extra_dist_dirs',
+            help='Directories in which to look for distributions',
             default='')
         parser.add_argument(
-            '--require_perfect_match', help=('Whether the dist recipes must '
-                                             'perfectly match those requested.'),
+            '--require_perfect_match',
+            help=('Whether the dist recipes must perfectly match those '
+                  'requested.'),
             type=bool, default=False)
-
 
         args, unknown = parser.parse_known_args(sys.argv[1:])
         self.dist_args = args
@@ -2540,7 +2626,8 @@ clean_dists
     #     parser = argparse.ArgumentParser(
     #             description="Build the toolchain")
     #     parser.add_argument("recipe", nargs="+", help="Recipe to compile")
-    #     parser.add_argument("--arch", help="Restrict compilation to this arch")
+    #     parser.add_argument("--arch", help="Restrict compilation to
+    #     this arch")
     #     args = parser.parse_args(sys.argv[2:])
 
     #     ctx = Context()
@@ -2589,7 +2676,8 @@ clean_dists
                     print("{recipe.name:<12} {recipe.version:<8}".format(
                           recipe=recipe))
                     print('    depends: {recipe.depends}'.format(recipe=recipe))
-                    print('    conflicts: {recipe.conflicts}'.format(recipe=recipe))
+                    print('    conflicts: {recipe.conflicts}'
+                          .format(recipe=recipe))
 
     def bootstraps(self, args):
         '''List all the bootstraps available to build with.'''
@@ -2597,8 +2685,8 @@ clean_dists
             bs = Bootstrap.get_bootstrap(bs, self.ctx)
             print('{Fore.BLUE}{Style.BRIGHT}{bs.name}{Style.RESET_ALL}'.format(
                 bs=bs, Fore=Fore, Style=Style))
-            print('    {Fore.GREEN}depends: {bs.recipe_depends}{Fore.RESET}'.format(
-                bs=bs, Fore=Fore))
+            print('    {Fore.GREEN}depends: {bs.recipe_depends}{Fore.RESET}'
+                  .format(bs=bs, Fore=Fore))
 
     def clean_all(self, args):
         '''Delete all build components; the package cache, package builds,
@@ -2625,9 +2713,11 @@ clean_dists
         '''Delete all build caches for each recipe, python-install, java code
         and compiled libs collection.
 
-        This does *not* delete the package download cache or the final distributions.
+        This does *not* delete the package download cache or the final
+        distributions.
 
-        You can also use clean_recipe_build to delete the build of a specific recipe.
+        You can also use clean_recipe_build to delete the build of a
+        specific recipe.
         '''
         parser = argparse.ArgumentParser(
                 description="Delete all build files (but not download caches)")
@@ -2661,9 +2751,7 @@ clean_dists
         info('Cleaning build for {} recipe.'.format(recipe.name))
         recipe.clean_build()
 
-
     def clean_download_cache(self, args):
-
         '''
         Deletes any downloaded recipe packages.
 
@@ -2704,9 +2792,9 @@ clean_dists
         ctx = self.ctx
         dist = dist_from_args(ctx, self.dist_args)
         if dist.needs_build:
-            info('You asked to export a dist, but there is no dist with suitable '
-                 'recipes available. For now, you must create one first with '
-                 'the create argument.')
+            info('You asked to export a dist, but there is no dist with '
+                 'suitable recipes available. For now, you must create '
+                 'one first with the create argument.')
             exit(1)
         shprint(sh.cp, '-r', dist.dist_dir, args.output)
 
@@ -2728,9 +2816,9 @@ clean_dists
         ctx = self.ctx
         dist = dist_from_args(ctx, self.dist_args)
         if dist.needs_build:
-            info('You asked to symlink a dist, but there is no dist with suitable '
-                 'recipes available. For now, you must create one first with '
-                 'the create argument.')
+            info('You asked to symlink a dist, but there is no dist with '
+                 'suitable recipes available. For now, you must create '
+                 'one first with the create argument.')
             exit(1)
         shprint(sh.ln, '-s', dist.dist_dir, args.output)
 
@@ -2780,7 +2868,6 @@ clean_dists
                  'just built {}'.format(apks[-1]))
         shprint(sh.cp, apks[-1], './')
 
-
     @require_prebuilt_dist
     def create(self, args):
         '''Create a distribution directory if it doesn't already exist, run
@@ -2807,9 +2894,11 @@ clean_dists
         with information about where the Android SDK and NDK will be called
         from.'''
         ctx = Context()
-        for attribute in ('root_dir', 'build_dir', 'dist_dir', 'libs_dir',
-                          'ccache', 'cython', 'sdk_dir', 'ndk_dir', 'ndk_platform',
-                          'ndk_ver', 'android_api'):
+        for attribute in (
+            'root_dir', 'build_dir', 'dist_dir', 'libs_dir', 'ccache',
+            'cython', 'sdk_dir', 'ndk_dir', 'ndk_platform', 'ndk_ver',
+            'android_api'
+        ):
             print('{} is {}'.format(attribute, getattr(ctx, attribute)))
 
     def dists(self, args):
@@ -2833,7 +2922,8 @@ clean_dists
     def delete_dist(self, args):
         dist = self._dist
         if dist.needs_build:
-            info('No dist exists that matches your specifications, exiting without deleting.')
+            info('No dist exists that matches your specifications, '
+                 'exiting without deleting.')
         shutil.rmtree(dist.dist_dir)
 
     def sdk_tools(self, args):
@@ -2885,25 +2975,28 @@ clean_dists
         self.adb(['logcat'] + args)
 
     def build_status(self, args):
-
-        print('{Style.BRIGHT}Bootstraps whose core components are probably already built:'
+        print('{Style.BRIGHT}Bootstraps whose core components are '
+              'probably already built:'
               '{Style.RESET_ALL}'.format(Style=Style))
         for filen in os.listdir(join(self.ctx.build_dir, 'bootstrap_builds')):
-            print('    {Fore.GREEN}{Style.BRIGHT}{filen}{Style.RESET_ALL}'.format(
-                filen=filen, Fore=Fore, Style=Style))
+            print('    {Fore.GREEN}{Style.BRIGHT}{filen}{Style.RESET_ALL}'
+                  .format(filen=filen, Fore=Fore, Style=Style))
 
         print('{Style.BRIGHT}Recipes that are probably already built:'
               '{Style.RESET_ALL}'.format(Style=Style))
         if exists(join(self.ctx.build_dir, 'other_builds')):
-            for filen in sorted(os.listdir(join(self.ctx.build_dir, 'other_builds'))):
+            for filen in sorted(
+                os.listdir(join(self.ctx.build_dir, 'other_builds'))
+            ):
                 name = filen.split('-')[0]
                 dependencies = filen.split('-')[1:]
                 recipe_str = ('    {Style.BRIGHT}{Fore.GREEN}{name}'
                               '{Style.RESET_ALL}'.format(
                                   Style=Style, name=name, Fore=Fore))
                 if dependencies:
-                    recipe_str += (' ({Fore.BLUE}with ' + ', '.join(dependencies) +
-                                   '{Fore.RESET})').format(Fore=Fore)
+                    recipe_str += (
+                        ' ({Fore.BLUE}with ' + ', '.join(dependencies) +
+                        '{Fore.RESET})').format(Fore=Fore)
                 recipe_str += '{Style.RESET_ALL}'.format(Style=Style)
                 print(recipe_str)
 
