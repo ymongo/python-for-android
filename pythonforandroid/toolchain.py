@@ -12,10 +12,9 @@ import sys
 from sys import stdout, platform
 from os.path import (join, dirname, realpath, exists, isdir, basename,
                      expanduser)
-from os import listdir, unlink, makedirs, environ, chdir, getcwd, walk, uname
+from os import listdir, unlink, makedirs, environ, chdir, getcwd, uname
 import os
 import zipfile
-import tarfile
 import importlib
 import io
 import json
@@ -546,11 +545,12 @@ class Context(object):
     env = environ.copy()
     root_dir = None  # the filepath of toolchain.py
     storage_dir = None  # the root dir where builds and dists will be stored
-    build_dir = None  # in which bootstraps are copied for building and
-                      # recipes are built
+    # in which bootstraps are copied for building and recipes are built
+    build_dir = None
     dist_dir = None  # the Android project folder where everything ends up
-    libs_dir = None  # where Android libs are cached after build but
-                     # before being placed in dists
+    # where Android libs are cached after build but before being placed
+    # in dists
+    libs_dir = None
     javaclass_dir = None
     ccache = None  # whether to use ccache
     cython = None  # the cython interpreter name
@@ -692,8 +692,8 @@ class Context(object):
             sdk_dir = environ.get('ANDROIDSDK', None)
         if sdk_dir is None:  # This seems used more conventionally
             sdk_dir = environ.get('ANDROID_HOME', None)
-        if sdk_dir is None:  # Checks in the buildozer SDK dir, useful
-                             # for debug tests of p4a
+        # Checks in the buildozer SDK dir, useful for debug tests of p4a
+        if sdk_dir is None:
             possible_dirs = glob.glob(expanduser(join(
                 '~', '.buildozer', 'android', 'platform', 'android-sdk-*')))
             if possible_dirs:
@@ -763,8 +763,8 @@ class Context(object):
             ndk_dir = environ.get('ANDROID_NDK_HOME', None)
             if ndk_dir is not None:
                 info('Found NDK dir in $ANDROID_NDK_HOME')
-        if ndk_dir is None:  # Checks in the buildozer NDK dir, useful
-                             # for debug tests of p4a
+        # Checks in the buildozer NDK dir, useful for debug tests of p4a
+        if ndk_dir is None:
             possible_dirs = glob.glob(expanduser(join(
                 '~', '.buildozer', 'android', 'platform', 'android-ndk-r*')))
             if possible_dirs:
@@ -1373,7 +1373,8 @@ class Recipe(object):
 
     version = None
     '''A string giving the version of the software the recipe describes,
-    e.g. ``2.0.3`` or ``master``.'''
+    e.g. ``2.0.3`` or ``master``.
+    '''
 
     md5sum = None
     '''The md5sum of the source from the :attr:`url`. Non-essential, but
@@ -1387,11 +1388,13 @@ class Recipe(object):
 
     conflicts = []
     '''A list containing the names of any recipes that are known to be
-    incompatible with this one.'''
+    incompatible with this one.
+    '''
 
     opt_depends = []
     '''A list of optional dependencies, that must be built before this
-    recipe if they are built at all, but whose presence is not essential.'''
+    recipe if they are built at all, but whose presence is not essential.
+    '''
 
     archs = ['armeabi']  # Not currently implemented properly
 
@@ -1706,7 +1709,8 @@ class Recipe(object):
                 extraction_filename = join(
                     self.ctx.packages_path, self.name, filename)
                 if os.path.isfile(extraction_filename):
-                    if (extraction_filename.endswith('.tar.gz') or
+                    if (
+                        extraction_filename.endswith('.tar.gz') or
                         extraction_filename.endswith('.tgz')
                     ):
                         sh.tar('xzf', extraction_filename)
@@ -2292,7 +2296,7 @@ def biglink_function(soname, objs_paths, extra_link_dirs=[], env=None):
             sofiles.append(fn[:-2])
 
     # The raw argument list.
-    args = [ ]
+    args = []
 
     for fn in sofiles:
         afn = fn + ".o"
@@ -2303,7 +2307,7 @@ def biglink_function(soname, objs_paths, extra_link_dirs=[], env=None):
             data = fd.read()
             args.extend(data.split(" "))
 
-    unique_args = [ ]
+    unique_args = []
     while args:
         a = args.pop()
         if a in ('-L', ):
@@ -2770,9 +2774,9 @@ clean_dists
     #     args = parser.parse_args(args)
     #     ctx = Context()
     #     # AND: TODO
-
-    #     print('This isn\'t implemented yet, but should list all currently existing '
-    #           'distributions, the modules they include, and all the build caches.')
+    #     print('This isn\'t implemented yet, but should list all
+    #           currently existing ' 'distributions, the modules they include,
+    #           and all the build caches.')
     #     exit(1)
 
     @require_prebuilt_dist
@@ -2878,10 +2882,10 @@ clean_dists
 
         # dist = dist_from_args(ctx, self.dist_args)
         # if not dist.needs_build:
-        #     info('You asked to create a distribution, but a dist with this name '
-        #          'already exists. If you don\'t want to use '
-        #          'it, you must delete it and rebuild, or create your '
-        #          'new dist with a different name.')
+        #     info('You asked to create a distribution, but a dist with '
+        #          'this name already exists. If you don\'t want to use '
+        #          'it, you must delete it and rebuild, or create your new '
+        #          'dist with a different name.')
         #     exit(1)
         # info('Ready to create dist {}, contains recipes {}'.format(
         #     dist.name, ', '.join(dist.recipes)))
