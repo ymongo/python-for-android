@@ -332,12 +332,6 @@ class Arch(object):
             for d in self.ctx.include_dirs]
 
     def get_env(self):
-        include_dirs = [
-            "-I{}/{}".format(
-                self.ctx.include_dir,
-                d.format(arch=self))
-            for d in self.ctx.include_dirs]
-
         env = {}
 
         env["CFLAGS"] = " ".join([
@@ -1059,8 +1053,6 @@ class Distribution(object):
         # possibilities
 
         existing_dists = Distribution.get_distributions(ctx)
-
-        needs_build = True  # whether the dist needs building, will be returned
 
         possible_dists = existing_dists
 
@@ -2151,7 +2143,6 @@ class CythonRecipe(PythonRecipe):
 
 def build_recipes(build_order, python_modules, ctx):
     # Put recipes in correct build order
-    bs = ctx.bootstrap
     info_notify("Recipe build order is {}".format(build_order))
     if python_modules:
         info_notify((
@@ -2697,8 +2688,6 @@ clean_dists
         bootstrap builds and distributions.'''
         parser = argparse.ArgumentParser(
                 description="Clean the build cache, downloads and dists")
-        parsed_args = parser.parse_args(args)
-        ctx = Context()
         self.clean_dists(args)
         self.clean_builds(args)
         self.clean_download_cache(args)
@@ -2845,7 +2834,6 @@ clean_dists
         #     description='Build an APK')
         # args = parser.parse_args(args)
 
-        ctx = self.ctx
         dist = self._dist
 
         # Manually fixing these arguments at the string stage is
