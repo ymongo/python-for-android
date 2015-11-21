@@ -75,6 +75,7 @@ if not hasattr(logger, 'touched'):  # Necessary as importlib reloads
     formatter = LevelDifferentiatingFormatter('%(message)s')
     ch.setFormatter(formatter)
     logger.addHandler(ch)
+
 info = logger.info
 debug = logger.debug
 warning = logger.warning
