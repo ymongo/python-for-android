@@ -139,7 +139,8 @@ def require_prebuilt_dist(func):
         ctx.prepare_build_environment(user_sdk_dir=self.sdk_dir,
                                       user_ndk_dir=self.ndk_dir,
                                       user_android_api=self.android_api,
-                                      user_ndk_ver=self.ndk_version)
+                                      user_ndk_ver=self.ndk_version,
+                                      user_ndk_api=self.ndk_api)
         dist = self._dist
         if dist.needs_build:
             info_notify('No dist exists that meets your requirements, '
@@ -260,6 +261,10 @@ class ToolchainCL(object):
             '--ndk-version', '--ndk_version', dest='ndk_version', default='',
             help=('The version of the Android NDK. This is optional, '
                   'we try to work it out automatically from the ndk_dir.'))
+        generic_parser.add_argument(
+            '--ndk-api', type=int, default=21,
+            help=('The Android API level to compile against. This should be your '
+                  '*minimal supported* API, not normally the same as your --android-api.'))
         generic_parser.add_argument(
             '--symlink-java-src', '--symlink_java_src',
             action='store_true',
@@ -500,6 +505,7 @@ class ToolchainCL(object):
         self.ndk_dir = args.ndk_dir
         self.android_api = args.android_api
         self.ndk_version = args.ndk_version
+        self.ndk_api = args.ndk_api
         self.ctx.symlink_java_src = args.symlink_java_src
         self.ctx.java_build_tool = args.java_build_tool
 
@@ -903,7 +909,8 @@ class ToolchainCL(object):
         ctx.prepare_build_environment(user_sdk_dir=self.sdk_dir,
                                       user_ndk_dir=self.ndk_dir,
                                       user_android_api=self.android_api,
-                                      user_ndk_ver=self.ndk_version)
+                                      user_ndk_ver=self.ndk_version,
+                                      user_ndk_api=self.ndk_api)
         android = sh.Command(join(ctx.sdk_dir, 'tools', args.tool))
         output = android(
             *args.unknown_args, _iter=True, _out_bufsize=1, _err_to_out=True)
@@ -930,7 +937,8 @@ class ToolchainCL(object):
         ctx.prepare_build_environment(user_sdk_dir=self.sdk_dir,
                                       user_ndk_dir=self.ndk_dir,
                                       user_android_api=self.android_api,
-                                      user_ndk_ver=self.ndk_version)
+                                      user_ndk_ver=self.ndk_version,
+                                      user_ndk_api=self.ndk_api)
         if platform in ('win32', 'cygwin'):
             adb = sh.Command(join(ctx.sdk_dir, 'platform-tools', 'adb.exe'))
         else:
