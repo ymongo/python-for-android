@@ -128,10 +128,10 @@ class SDL2GradleBootstrap(Bootstrap):
 
                 # zip up the standard library
                 stdlib_zip = join(self.dist_dir, python_bundle_dir, 'stdlib.zip')
-                with current_directory(
-                        join(self.ctx.python_recipe.get_build_dir(arch.arch),
-                             'Lib')):
-                    shprint(sh.zip, '-r', stdlib_zip, *os.listdir())
+                stdlib_dir = join(
+                    self.ctx.python_recipe.get_build_dir(arch.arch), 'Lib')
+                with current_directory(stdlib_dir):
+                    shprint(sh.zip, '-r', stdlib_zip, *os.listdir(stdlib_dir))
                     
                 # copy the site-packages into place
                 shprint(sh.cp, '-r', self.ctx.get_python_install_dir(),
