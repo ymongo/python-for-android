@@ -125,7 +125,7 @@ def make_python_zip():
 
     if not exists('private'):
         print('No compiled python is present to zip, skipping.')
-        print('this should only be the case if you are using the CrystaX python')
+        print('this should only be the case if you are using the CrystaX python or python3')
         return
 
     global python_files
@@ -137,10 +137,10 @@ def make_python_zip():
         fn = realpath(fn)
         assert(fn.startswith(d))
         fn = fn[len(d):]
-        if (fn.startswith('/site-packages/')
-                or fn.startswith('/config/')
-                or fn.startswith('/lib-dynload/')
-                or fn.startswith('/libpymodules.so')):
+        if (fn.startswith('/site-packages/') or
+            fn.startswith('/config/') or
+            fn.startswith('/lib-dynload/') or
+            fn.startswith('/libpymodules.so')):
             return False
         return fn
 
@@ -243,6 +243,8 @@ main.py that loads it.''')
         tar_dirs.append('private')
     if exists('crystax_python'):
         tar_dirs.append('crystax_python')
+    if exists('_python_bundle'):
+        tar_dirs.append('_python_bundle')
 
     if args.private:
         make_tar('src/main/assets/private.mp3', tar_dirs, args.ignore_path)
@@ -378,7 +380,7 @@ main.py that loads it.''')
         url_scheme=url_scheme,
         private_version=str(time.time()))
 
-    # gradle build templates
+    ## gradle build templates
     render(
         'build.tmpl.gradle',
         'build.gradle',
@@ -388,7 +390,7 @@ main.py that loads it.''')
         android_api=android_api,
         build_tools_version=build_tools_version)
 
-    # ant build templates
+    ## ant build templates
     render(
         'build.tmpl.xml',
         'build.xml',
@@ -409,7 +411,7 @@ main.py that loads it.''')
 
 def parse_args(args=None):
     global BLACKLIST_PATTERNS, WHITELIST_PATTERNS, PYTHON
-    default_android_api = 12
+    default_android_api = 21
     import argparse
     ap = argparse.ArgumentParser(description='''\
 Package a Python application for Android.
@@ -418,10 +420,10 @@ For this to work, Java and Ant need to be in your path, as does the
 tools directory of the Android SDK.
 ''')
 
-    # `required=True` for launcher, crashes in make_package
-    # if not mentioned (and the check is there anyway)
     ap.add_argument('--private', dest='private',
                     help='the dir of user files')
+                    # , required=True) for launcher, crashes in make_package
+                    # if not mentioned (and the check is there anyway)
     ap.add_argument('--package', dest='package',
                     help=('The name of the java package the project will be'
                           ' packaged under.'),
@@ -486,8 +488,8 @@ tools directory of the Android SDK.
     ap.add_argument('--depend', dest='depends', action='append',
                     help=('Add a external dependency '
                           '(eg: com.android.support:appcompat-v7:19.0.1)'))
-    # The --sdk option has been removed, it is ignored in favour of
-    # --android-api handled by toolchain.py
+    ## The --sdk option has been removed, it is ignored in favour of
+    ## --android-api handled by toolchain.py
     ap.add_argument('--sdk', dest='sdk_version', default=-1,
                     type=int, help=('Deprecated argument, does nothing'))
     ap.add_argument('--minsdk', dest='min_sdk_version',
