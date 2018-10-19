@@ -1,0 +1,47 @@
+diff -Naurp cpython-bpo-30386.orig/setup.py cpython-bpo-30386/setup.py
+--- cpython-bpo-30386.orig/setup.py	2018-09-15 23:45:17.000000000 +0200
++++ cpython-bpo-30386/setup.py	2018-10-18 13:12:59.798278300 +0200
+@@ -859,6 +870,7 @@ class PyBuildExt(build_ext):
+                                depends = ['socketmodule.h']) )
+         # Detect SSL support for the socket module (via _ssl)
+         search_for_ssl_incs_in = [
++                              os.path.join(os.environ["OPENSSL_BUILD"], 'include'),
+                               '/usr/local/ssl/include',
+                               '/usr/contrib/ssl/include/'
+                              ]
+@@ -871,7 +883,8 @@ class PyBuildExt(build_ext):
+             if krb5_h:
+                 ssl_incs += krb5_h
+         ssl_libs = find_library_file(self.compiler, 'ssl',lib_dirs,
+-                                     ['/usr/local/ssl/lib',
++                                     [os.environ["OPENSSL_BUILD"],
++                                      '/usr/local/ssl/lib',
+                                       '/usr/contrib/ssl/lib/'
+                                      ] )
+
+@@ -1177,7 +1190,13 @@ class PyBuildExt(build_ext):
+                              '/usr/local/include/sqlite3',
+                              ]
+         if cross_compiling:
+-            sqlite_inc_paths = []
++            # The common install prefix of 3rd party headers used during
++            # cross compilation
++            mydir = os.environ.get('PYTHON_XCOMPILE_DEPENDENCIES_PREFIX')
++            if mydir:
++                sqlite_inc_paths = [mydir + '/include']
++            else:
++                sqlite_inc_paths = []
+         MIN_SQLITE_VERSION_NUMBER = (3, 0, 8)
+         MIN_SQLITE_VERSION = ".".join([str(x)
+                                     for x in MIN_SQLITE_VERSION_NUMBER])
+@@ -1229,7 +1248,9 @@ class PyBuildExt(build_ext):
+             if sqlite_libfile:
+                 sqlite_libdir = [os.path.abspath(os.path.dirname(sqlite_libfile))]
+
+-        if sqlite_incdir and sqlite_libdir:
++        sqlite_incdir = os.environ["SQLITE3_INC_DIR"]
++        sqlite_libdir = [os.environ["SQLITE3_LIB_DIR"]]
++        if os.path.isdir(sqlite_incdir) and os.path.isdir(sqlite_libdir[0]):
+             sqlite_srcs = ['_sqlite/cache.c',
+                 '_sqlite/connection.c',
+                 '_sqlite/cursor.c',

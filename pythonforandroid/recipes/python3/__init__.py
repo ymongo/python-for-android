@@ -2,11 +2,53 @@ from pythonforandroid.recipe import TargetPythonRecipe, Recipe
 from pythonforandroid.toolchain import shprint, current_directory, info
 from pythonforandroid.patching import (is_darwin, is_api_gt,
                                        check_all, is_api_lt, is_ndk)
-from pythonforandroid.logger import logger
+from pythonforandroid.logger import (logger, Err_Fore)
 from pythonforandroid.util import ensure_dir
 from os.path import exists, join, realpath
 from os import environ
 import sh
+
+
+# Here we set data for python's optional libraries, any optional future library
+# should be referenced into variable `libs_info` and maybe in `versioned_libs`.
+# Perhaps some additional operations had to be performed in functions:
+#     - set_libs_flags: if the path for library/includes is in some location
+#                       defined dynamically by some function.
+#     - do_python_build: if python has some specific argument to enable
+#                        external library support.
+
+# versioned_libs is a list with versioned libraries
+versioned_libs = ['openssl']
+
+# libs_info is a dict where his keys are the optional recipes,
+# each value of libs_info is a dict:
+#    - includes: list of includes (should be relative paths
+#                which point to the includes).
+#    - lib_links: list of ldflags needed to link python with the library.
+#    - lib_path: relative path pointing to the library location,
+#                (if is set to None, the library's build dir will be taken).
+libs_info = {
+    'openssl': {
+        'includes': ['include', join('include', 'openssl')],
+        'lib_links': ['-lcrypto', '-lssl'],
+        'lib_path': None,
+    },
+    'sqlite3': {
+        'includes': [''],
+        'lib_links': ['-lsqlite3'],
+        'lib_path': None,
+    },
+    'libffi': {
+        'includes': ['include'],
+        'lib_links': ['-lffi'],
+        'lib_path': '.libs',
+    },
+    'libexpat': {
+        'includes': ['lib'],
+        'lib_links': ['-lexpat'],
+        'lib_path': join('expat', 'lib', '.libs'),
+    },
+}
 
 
 class Python3Recipe(TargetPythonRecipe):
@@ -16,7 +58,80 @@ class Python3Recipe(TargetPythonRecipe):
 
     depends = ['hostpython3']
     conflicts = ['python3crystax', 'python2']
-    # opt_depends = ['openssl', 'sqlite3']
+    opt_depends = ['libffi', 'libexpat', 'openssl', 'sqlite3']
+    # TODO: More patches maybe be needed, but with those
+    # two we successfully build and run a simple app
+    patches = ['patches/python-3.x.x-libs.patch',
+               'patches/fix-termios.patch']
+
+    def set_libs_flags(self, env, arch=None):
+        # Takes an env as argument and adds cflags/ldflags
+        # based on libs_info and versioned_libs.
+        env['OPENSSL_BUILD'] = '/path-to-openssl'
+        env['SQLITE3_INC_DIR'] = '/path-to-sqlite3-includes'
+        env['SQLITE3_LIB_DIR'] = '/path-to-sqlite3-library'
+
+        for lib in self.opt_depends:
+            if lib in self.ctx.recipe_build_order:
+                logger.info(
+                    ''.join((Err_Fore.MAGENTA, '-> Activating flags for ', lib,
+                             Err_Fore.RESET)))
+                r = Recipe.get_recipe(lib, self.ctx)
+                b = r.get_build_dir(arch.arch)
+
+                # Sets or modifies include/library base paths,
+                # this should point to build directory, and some
+                # libs has special build directories...so...
+                # here we deal with it.
+                inc_dir = b
+                lib_dir = b
+                if lib == 'sqlite3':
+                    lib_dir = r.get_lib_dir(arch)
+                elif lib == 'libffi':
+                    inc_dir = join(inc_dir, r.get_host(arch))
+                    lib_dir = join(lib_dir, r.get_host(arch))
+                elif lib == 'libexpat':
+                    inc_dir = join(b, 'expat')
+
+                # It establishes the include's flags taking into
+                # account the information provided in libs_info.
+                if libs_info[lib]['includes']:
+                    includes = [
+                        join(inc_dir, p) for p in libs_info[lib]['includes']]
+                else:
+                    includes = [inc_dir]
+                i_flags = ' -I' + ' -I'.join(includes)
+
+                # It establishes the linking's flags taking into
+                # account the information provided in libs_info.
+                if libs_info[lib]['lib_path']:
+                    lib_dir = join(lib_dir, libs_info[lib]['lib_path'])
+                if lib not in versioned_libs:
+                    l_flags = ' -L' + lib_dir + ' ' + ' '.join(
+                        libs_info[lib]['lib_links'])
+                else:
+                    l_flags = ' -L' + lib_dir + ' ' + ' '.join(
+                        [i + r.version for i in libs_info[lib]['lib_links']])
+
+                # Inserts or appends to env.
+                f = 'CPPFLAGS'
+                env[f] = env[f] + i_flags if f in env else i_flags
+                f = 'LDFLAGS'
+                env[f] = env[f] + l_flags if f in env else l_flags
+
+                # Sets special python compilation flags for some libs.
+                # The openssl and sqlite env variables are set
+                # via patch: patches/python-3.x.x-libs.patch
+                if lib == 'openssl':
+                    env['OPENSSL_BUILD'] = b
+                    env['OPENSSL_VERSION'] = r.version
+                elif lib == 'sqlite3':
+                    env['SQLITE3_INC_DIR'] = inc_dir
+                    env['SQLITE3_LIB_DIR'] = lib_dir
+                elif lib == 'libffi':
+                    env['LIBFFI_CFLAGS'] = env['CFLAGS'] + i_flags
+                    env['LIBFFI_LIBS'] = l_flags
+        return env
 
     def build_arch(self, arch):
         recipe_build_dir = self.get_build_dir(arch.arch)
@@ -80,22 +195,36 @@ class Python3Recipe(TargetPythonRecipe):
 
             env['SYSROOT'] = sysroot
 
+            # TODO: All the env variables should be moved
+            # into method: get_recipe_env (all above included)
+            env = self.set_libs_flags(env, arch)
+
+            # Arguments for python configure
+            # TODO: move ac_xx_ arguments to config.site
+            configure_args = [
+                '--host={android_host}',
+                '--build={android_build}',
+                '--enable-shared',
+                '--disable-ipv6',
+                '--without-ensurepip',
+                '--prefix={prefix}',
+                '--exec-prefix={exec_prefix}',
+                'ac_cv_file__dev_ptmx=yes',
+                'ac_cv_file__dev_ptc=no',
+                'ac_cv_little_endian_double=yes'
+                ]
+            if 'libffi' in self.ctx.recipe_build_order:
+                configure_args.append('--with-system-ffi')
+            if 'libexpat' in self.ctx.recipe_build_order:
+                configure_args.append('--with-system-expat')
+
             if not exists('config.status'):
                 shprint(sh.Command(join(recipe_build_dir, 'configure')),
-                        *(' '.join(('--host={android_host}',
-                                    '--build={android_build}',
-                                    '--enable-shared',
-                                    '--disable-ipv6',
-                                    'ac_cv_file__dev_ptmx=yes',
-                                    'ac_cv_file__dev_ptc=no',
-                                    '--without-ensurepip',
-                                    'ac_cv_little_endian_double=yes',
-                                    '--prefix={prefix}',
-                                    '--exec-prefix={exec_prefix}')).format(
-                                        android_host=android_host,
-                                        android_build=android_build,
-                                        prefix=sys_prefix,
-                                        exec_prefix=sys_exec_prefix)).split(' '), _env=env)
+                        *(' '.join(configure_args).format(
+                            android_host=android_host,
+                            android_build=android_build,
+                            prefix=sys_prefix,
+                            exec_prefix=sys_exec_prefix)).split(' '), _env=env)
 
             if not exists('python'):
                 shprint(sh.make, 'all', _env=env)
