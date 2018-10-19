@@ -37,6 +37,7 @@ class Context(object):
     cython = None  # the cython interpreter name
 
     ndk_platform = None  # the ndk platform directory
+    ndk_api = None       # the ndk api number
 
     dist_name = None  # should be deprecated in favour of self.dist.dist_name
     bootstrap = None
