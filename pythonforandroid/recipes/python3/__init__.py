@@ -64,6 +64,60 @@ class Python3Recipe(TargetPythonRecipe):
     patches = ['patches/python-{version}-libs.patch'.format(version=version),
                'patches/fix-termios.patch']
 
+    def get_recipe_env(self, arch=None, with_flags_in_cc=True):
+        env = environ.copy()
+
+        # TODO: Get this information from p4a's arch system
+        env['HOSTARCH'] = android_host = 'arm-linux-androideabi'
+        toolchain = '{android_host}-4.9'.format(android_host=android_host)
+        toolchain = join(self.ctx.ndk_dir, 'toolchains',
+                         toolchain, 'prebuilt', 'linux-x86_64')
+
+        env['CC'] = \
+            '{clang} -target {target} -gcc-toolchain {toolchain}'.format(
+                clang=join(
+                    self.ctx.ndk_dir, 'toolchains', 'llvm',
+                    'prebuilt', 'linux-x86_64', 'bin', 'clang'),
+                target='armv7-none-linux-androideabi',
+                toolchain=toolchain)
+        env['AR'] = join(toolchain, 'bin', android_host) + '-ar'
+        env['LD'] = join(toolchain, 'bin', android_host) + '-ld'
+        env['RANLIB'] = join(toolchain, 'bin', android_host) + '-ranlib'
+        env['READELF'] = join(toolchain, 'bin', android_host) + '-readelf'
+        env['STRIP'] = \
+            join(toolchain, 'bin', android_host) + \
+            '-strip --strip-debug --strip-unneeded'
+
+        ndk_flags = \
+            '--sysroot={ndk_sysroot} -D__ANDROID_API__=21 ' \
+            '-isystem {ndk_android_host}'.format(
+                ndk_sysroot=join(self.ctx.ndk_dir, 'sysroot'),
+                ndk_android_host=join(self.ctx.ndk_dir, 'sysroot',
+                                      'usr', 'include', android_host))
+        sysroot = join(self.ctx.ndk_dir, 'platforms', 'android-21', 'arch-arm')
+        env['CFLAGS'] = env.get('CFLAGS', '') + ' ' + ndk_flags
+        env['CPPFLAGS'] = env.get('CPPFLAGS', '') + ' ' + ndk_flags
+        env['LDFLAGS'] = \
+            env.get('LDFLAGS', '') + ' --sysroot={} -L{}'.format(
+                sysroot, join(sysroot, 'usr', 'lib'))
+        # Manually add the libs directory, and copy some object
+        # files to the current directory otherwise they aren't
+        # picked up. This seems necessary because the --sysroot
+        # setting in LDFLAGS is overridden by the other flags.
+        # TODO: Work out why this doesn't happen in the original
+        # bpo-30386 Makefile system.
+        logger.warning('Doing some hacky stuff to link properly')
+        lib_dir = join(sysroot, 'usr', 'lib')
+        env['LDFLAGS'] += ' -L{}'.format(lib_dir)
+        # TODO: Maybe this should be moved somewhere else?
+        shprint(sh.cp, join(lib_dir, 'crtbegin_so.o'), './')
+        shprint(sh.cp, join(lib_dir, 'crtend_so.o'), './')
+
+        env['SYSROOT'] = sysroot
+
+        env = self.set_libs_flags(env, arch)
+        return env
+
     def set_libs_flags(self, env, arch=None):
         # Takes an env as argument and adds cflags/ldflags
         # based on libs_info and versioned_libs.
@@ -144,60 +198,16 @@ class Python3Recipe(TargetPythonRecipe):
         sys_prefix = '/usr/local'
         sys_exec_prefix = '/usr/local'
 
-        # Skipping "Ensure that nl_langinfo is broken" from the original bpo-30386
+        # TODO: Why we put the below comment? It's still needed?
+        # Skipping "Ensure that nl_langinfo is broken"
+        # from the original bpo-30386
 
         with current_directory(build_dir):
-            env = environ.copy()
+            env = self.get_recipe_env(arch)
 
-            # TODO: Get this information from p4a's arch system
-            android_host = 'arm-linux-androideabi'
-            android_build = sh.Command(join(recipe_build_dir, 'config.guess'))().stdout.strip().decode('utf-8')
-            platform_dir = join(self.ctx.ndk_dir, 'platforms', 'android-21', 'arch-arm')
-            toolchain = '{android_host}-4.9'.format(android_host=android_host)
-            toolchain = join(self.ctx.ndk_dir, 'toolchains', toolchain, 'prebuilt', 'linux-x86_64')
-            CC = '{clang} -target {target} -gcc-toolchain {toolchain}'.format(
-                clang=join(self.ctx.ndk_dir, 'toolchains', 'llvm', 'prebuilt', 'linux-x86_64', 'bin', 'clang'),
-                target='armv7-none-linux-androideabi',
-                toolchain=toolchain)
-
-            AR = join(toolchain, 'bin', android_host) + '-ar'
-            LD = join(toolchain, 'bin', android_host) + '-ld'
-            RANLIB = join(toolchain, 'bin', android_host) + '-ranlib'
-            READELF = join(toolchain, 'bin', android_host) + '-readelf'
-            STRIP = join(toolchain, 'bin', android_host) + '-strip --strip-debug --strip-unneeded'
-
-            env['CC'] = CC
-            env['AR'] = AR
-            env['LD'] = LD
-            env['RANLIB'] = RANLIB
-            env['READELF'] = READELF
-            env['STRIP'] = STRIP
-
-            ndk_flags = '--sysroot={ndk_sysroot} -D__ANDROID_API__=21 -isystem {ndk_android_host}'.format(
-                ndk_sysroot=join(self.ctx.ndk_dir, 'sysroot'),
-                ndk_android_host=join(self.ctx.ndk_dir, 'sysroot', 'usr', 'include', android_host))
-            sysroot = join(self.ctx.ndk_dir, 'platforms', 'android-21', 'arch-arm')
-            env['CFLAGS'] = env.get('CFLAGS', '') + ' ' + ndk_flags
-            env['CPPFLAGS'] = env.get('CPPFLAGS', '') + ' ' + ndk_flags
-            env['LDFLAGS'] = env.get('LDFLAGS', '') + ' --sysroot={} -L{}'.format(sysroot, join(sysroot, 'usr', 'lib'))
-
-            # Manually add the libs directory, and copy some object
-            # files to the current directory otherwise they aren't
-            # picked up. This seems necessary because the --sysroot
-            # setting in LDFLAGS is overridden by the other flags.
-            # TODO: Work out why this doesn't happen in the original
-            # bpo-30386 Makefile system.
-            logger.warning('Doing some hacky stuff to link properly')
-            lib_dir = join(sysroot, 'usr', 'lib')
-            env['LDFLAGS'] += ' -L{}'.format(lib_dir)
-            shprint(sh.cp, join(lib_dir, 'crtbegin_so.o'), './')
-            shprint(sh.cp, join(lib_dir, 'crtend_so.o'), './')
-
-            env['SYSROOT'] = sysroot
-
-            # TODO: All the env variables should be moved
-            # into method: get_recipe_env (all above included)
-            env = self.set_libs_flags(env, arch)
+            android_build = sh.Command(
+                join(self.get_build_dir(arch.arch),
+                     'config.guess'))().stdout.strip().decode('utf-8')
 
             # Arguments for python configure
             # TODO: move ac_xx_ arguments to config.site
@@ -221,7 +231,7 @@ class Python3Recipe(TargetPythonRecipe):
             if not exists('config.status'):
                 shprint(sh.Command(join(recipe_build_dir, 'configure')),
                         *(' '.join(configure_args).format(
-                            android_host=android_host,
+                            android_host=env['HOSTARCH'],
                             android_build=android_build,
                             prefix=sys_prefix,
                             exec_prefix=sys_exec_prefix)).split(' '), _env=env)
