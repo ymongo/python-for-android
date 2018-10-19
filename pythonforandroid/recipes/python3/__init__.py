@@ -1,13 +1,12 @@
 from pythonforandroid.recipe import TargetPythonRecipe, Recipe
-from pythonforandroid.toolchain import shprint, current_directory, info
-from pythonforandroid.patching import (is_darwin, is_api_gt,
-                                       check_all, is_api_lt, is_ndk)
+from pythonforandroid.toolchain import shprint, current_directory
+# from pythonforandroid.patching import (
+#     is_darwin, is_api_gt, check_all, is_api_lt, is_ndk)
 from pythonforandroid.logger import (logger, Err_Fore)
 from pythonforandroid.util import ensure_dir
-from os.path import exists, join, realpath
+from os.path import exists, join
 from os import environ
 import sh
-
 
 # Here we set data for python's optional libraries, any optional future library
 # should be referenced into variable `libs_info` and maybe in `versioned_libs`.
@@ -59,6 +58,7 @@ class Python3Recipe(TargetPythonRecipe):
     depends = ['hostpython3']
     conflicts = ['python3crystax', 'python2']
     opt_depends = ['libffi', 'libexpat', 'openssl', 'sqlite3']
+
     # TODO: More patches maybe be needed, but with those
     # two we successfully build and run a simple app
     patches = ['patches/python-{version}-libs.patch'.format(version=version),
@@ -189,7 +189,7 @@ class Python3Recipe(TargetPythonRecipe):
 
     def build_arch(self, arch):
         recipe_build_dir = self.get_build_dir(arch.arch)
-        
+
         # Create a subdirectory to actually perform the build
         build_dir = join(recipe_build_dir, 'android-build')
         ensure_dir(build_dir)
@@ -250,5 +250,6 @@ class Python3Recipe(TargetPythonRecipe):
     def link_root(self, arch_name):
         return join(self.get_build_dir(arch_name),
                     'android-build')
-            
+
+
 recipe = Python3Recipe()
