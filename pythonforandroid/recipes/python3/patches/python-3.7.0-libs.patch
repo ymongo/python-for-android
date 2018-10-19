@@ -1,0 +1,51 @@
+diff -Naurp Python-3.7.0.orig/setup.py Python-3.7.0-xcompile/setup.py
+--- Python-3.7.0.orig/setup.py	2018-06-27 05:07:35.000000000 +0200
++++ Python-3.7.0-xcompile/setup.py	2018-07-22 20:51:47.793048200 +0200
+@@ -1135,7 +1158,13 @@ class PyBuildExt(build_ext):
+                              '/usr/local/include/sqlite3',
+                              ]
+         if cross_compiling:
+-            sqlite_inc_paths = []
++            # The common install prefix of 3rd party headers used during
++            # cross compilation
++            mydir = os.environ.get('PYTHON_XCOMPILE_DEPENDENCIES_PREFIX')
++            if mydir:
++                sqlite_inc_paths = [mydir + '/include']
++            else:
++                sqlite_inc_paths = []
+         MIN_SQLITE_VERSION_NUMBER = (3, 0, 8)
+         MIN_SQLITE_VERSION = ".".join([str(x)
+                                     for x in MIN_SQLITE_VERSION_NUMBER])
+@@ -1186,8 +1215,9 @@ class PyBuildExt(build_ext):
+                                 sqlite_dirs_to_check + lib_dirs, 'sqlite3')
+             if sqlite_libfile:
+                 sqlite_libdir = [os.path.abspath(os.path.dirname(sqlite_libfile))]
+-
+-        if sqlite_incdir and sqlite_libdir:
++        sqlite_incdir = os.environ["SQLITE3_INC_DIR"]
++        sqlite_libdir = [os.environ["SQLITE3_LIB_DIR"]]
++        if os.path.isdir(sqlite_incdir) and os.path.isdir(sqlite_libdir[0]):
+             sqlite_srcs = ['_sqlite/cache.c',
+                 '_sqlite/connection.c',
+                 '_sqlite/cursor.c',
+@@ -2138,8 +2168,9 @@ class PyBuildExt(build_ext):
+             sep = ' ' + sep
+             return [v.strip() for v in value.split(sep) if v.strip()]
+
+-        openssl_includes = split_var('OPENSSL_INCLUDES', '-I')
+-        openssl_libdirs = split_var('OPENSSL_LDFLAGS', '-L')
++        openssl_includes = [
++            os.path.join(os.environ["OPENSSL_BUILD"], 'include')]
++        openssl_libdirs = [os.environ["OPENSSL_BUILD"]]
+         openssl_libs = split_var('OPENSSL_LIBS', '-l')
+         if not openssl_libs:
+             # libssl and libcrypto not found
+@@ -2147,7 +2178,7 @@ class PyBuildExt(build_ext):
+
+         # Find OpenSSL includes
+         ssl_incs = find_file(
+-            'openssl/ssl.h', inc_dirs, openssl_includes
++            'openssl/ssl.h', openssl_includes, inc_dirs
+         )
+         if ssl_incs is None:
+             return None, None

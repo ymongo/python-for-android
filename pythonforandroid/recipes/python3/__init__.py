@@ -52,8 +52,8 @@ libs_info = {
 
 
 class Python3Recipe(TargetPythonRecipe):
-    version = 'bpo-30386'
-    url = 'https://github.com/inclement/cpython/archive/{version}.zip'
+    version = '3.7.0'
+    url = 'https://www.python.org/ftp/python/{version}/Python-{version}.tgz'
     name = 'python3'
 
     depends = ['hostpython3']
@@ -61,7 +61,7 @@ class Python3Recipe(TargetPythonRecipe):
     opt_depends = ['libffi', 'libexpat', 'openssl', 'sqlite3']
     # TODO: More patches maybe be needed, but with those
     # two we successfully build and run a simple app
-    patches = ['patches/python-3.x.x-libs.patch',
+    patches = ['patches/python-{version}-libs.patch'.format(version=version),
                'patches/fix-termios.patch']
 
     def set_libs_flags(self, env, arch=None):
@@ -121,7 +121,7 @@ class Python3Recipe(TargetPythonRecipe):
 
                 # Sets special python compilation flags for some libs.
                 # The openssl and sqlite env variables are set
-                # via patch: patches/python-3.x.x-libs.patch
+                # via patch: patches/python-3.7.0-libs.patch
                 if lib == 'openssl':
                     env['OPENSSL_BUILD'] = b
                     env['OPENSSL_VERSION'] = r.version
