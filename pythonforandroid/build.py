@@ -620,9 +620,16 @@ def run_pymodules_install(ctx, modules):
 
     venv = sh.Command(ctx.virtualenv)
     with current_directory(join(ctx.build_dir)):
-        shprint(venv,
-                '--python=python{}'.format(ctx.python_recipe.major_minor_version_string()),
-                'venv')
+        # TODO: We must review this, probably we can do the job with fewer lines
+        # shprint(venv,
+        #         '--python=python{}'.format(ctx.python_recipe.major_minor_version_string()),
+        #         'venv')
+        if 'hostpython3' in ctx.recipe_build_order:
+            shprint(venv, '--python=python3', 'venv')
+        elif 'hostpython3crystax' in ctx.recipe_build_order:
+            shprint(venv, '--python=python3crystax', 'venv')
+        else:
+            shprint(venv, '--python=python2.7', 'venv')
 
         info('Creating a requirements.txt file for the Python modules')
         with open('requirements.txt', 'w') as fileh:
