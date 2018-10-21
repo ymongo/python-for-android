@@ -60,22 +60,27 @@ class Python3Recipe(TargetPythonRecipe):
             env['READELF'] = READELF
             env['STRIP'] = STRIP
 
-            ndk_flags = '--sysroot={ndk_sysroot} -D__ANDROID_API__=21 -isystem {ndk_android_host}'.format(
+            ndk_flags = '--sysroot={ndk_sysroot} -D__ANDROID_API__=21 -isystem {ndk_android_host} -I{ndk_include}'.format(
                 ndk_sysroot=join(self.ctx.ndk_dir, 'sysroot'),
-                ndk_android_host=join(self.ctx.ndk_dir, 'sysroot', 'usr', 'include', android_host))
+                ndk_android_host=join(self.ctx.ndk_dir, 'sysroot', 'usr', 'include', android_host),
+                ndk_include=join(self.ctx.ndk_dir, 'sysroot', 'usr', 'include'))
             sysroot = join(self.ctx.ndk_dir, 'platforms', 'android-21', 'arch-arm')
             env['CFLAGS'] = env.get('CFLAGS', '') + ' ' + ndk_flags
             env['CPPFLAGS'] = env.get('CPPFLAGS', '') + ' ' + ndk_flags
             env['LDFLAGS'] = env.get('LDFLAGS', '') + ' --sysroot={} -L{}'.format(sysroot, join(sysroot, 'usr', 'lib'))
 
+            with_libs = ()
             if 'openssl' in self.ctx.recipe_build_order:
                 recipe = Recipe.get_recipe('openssl', self.ctx)
                 openssl_build_dir = recipe.get_build_dir(arch.arch)
-                ensure_dir('Modules')
-                setuplocal = join('Modules', 'Setup.local')
-                shprint(sh.cp, join(self.get_recipe_dir(), 'Setup.local-ssl'), setuplocal)
-                shprint(sh.sed, '-i.backup', 's#^SSL=.*#SSL={}#'.format(openssl_build_dir), setuplocal)
                 env['OPENSSL_VERSION'] = recipe.lib_version
+
+                # Hack to make python find openssl's libraries
+                lib_ln = join(openssl_build_dir, 'lib')
+                if not exists(lib_ln):
+                    shprint(sh.ln, '-s', openssl_build_dir, lib_ln)
+
+                with_libs += ('--with-openssl=' + openssl_build_dir,)
 
             if 'sqlite3' in self.ctx.recipe_build_order:
                 # Include sqlite3 in python2 build
@@ -113,7 +118,7 @@ class Python3Recipe(TargetPythonRecipe):
                                     '--without-ensurepip',
                                     'ac_cv_little_endian_double=yes',
                                     '--prefix={prefix}',
-                                    '--exec-prefix={exec_prefix}')).format(
+                                    '--exec-prefix={exec_prefix}') + with_libs).format(
                                         android_host=android_host,
                                         android_build=android_build,
                                         prefix=sys_prefix,
