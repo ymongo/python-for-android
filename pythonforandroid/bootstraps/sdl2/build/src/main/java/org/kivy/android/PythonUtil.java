@@ -37,6 +37,8 @@ public class PythonUtil {
         ArrayList<String> libsList = new ArrayList<String>();
         addLibraryIfExists(libsList, "crystax", libsDir);
         addLibraryIfExists(libsList, "sqlite3", libsDir);
+        addLibraryIfExists(libsList, "expat", libsDir);
+        addLibraryIfExists(libsList, "ffi", libsDir);
         libsList.add("SDL2");
         libsList.add("SDL2_image");
         libsList.add("SDL2_mixer");

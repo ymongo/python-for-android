@@ -18,7 +18,7 @@ class Python3Recipe(TargetPythonRecipe):
 
     depends = ['hostpython3']
     conflicts = ['python3crystax', 'python2']
-    opt_depends = ['openssl', 'sqlite3']
+    opt_depends = ['openssl', 'sqlite3', 'libffi', 'libexpat']
 
     def build_arch(self, arch):
         recipe_build_dir = self.get_build_dir(arch.arch)
@@ -69,6 +69,13 @@ class Python3Recipe(TargetPythonRecipe):
             env['CPPFLAGS'] = env.get('CPPFLAGS', '') + ' ' + ndk_flags
             env['LDFLAGS'] = env.get('LDFLAGS', '') + ' --sysroot={} -L{}'.format(sysroot, join(sysroot, 'usr', 'lib'))
 
+            def add_lib_flags(lib_include, lib_link):
+                # Insert or append to env
+                flag = 'CPPFLAGS'
+                env[flag] = env[flag] + lib_include if flag in env else lib_include
+                flag = 'LDFLAGS'
+                env[flag] = env[flag] + lib_link if flag in env else lib_link
+
             with_libs = ()
             if 'openssl' in self.ctx.recipe_build_order:
                 recipe = Recipe.get_recipe('openssl', self.ctx)
@@ -81,18 +88,28 @@ class Python3Recipe(TargetPythonRecipe):
                     shprint(sh.ln, '-s', openssl_build_dir, lib_ln)
 
                 with_libs += ('--with-openssl=' + openssl_build_dir,)
-
             if 'sqlite3' in self.ctx.recipe_build_order:
                 # Include sqlite3 in python2 build
                 recipe = Recipe.get_recipe('sqlite3', self.ctx)
                 include = ' -I' + recipe.get_build_dir(arch.arch)
                 lib = ' -L' + recipe.get_lib_dir(arch) + ' -lsqlite3'
-                # Insert or append to env
-                flag = 'CPPFLAGS'
-                env[flag] = env[flag] + include if flag in env else include
-                flag = 'LDFLAGS'
-                env[flag] = env[flag] + lib if flag in env else lib
-
+                add_lib_flags(include, lib)
+            if 'libffi' in self.ctx.recipe_build_order:
+                recipe = Recipe.get_recipe('libffi', self.ctx)
+                include = ' -I' + ' -I'.join(recipe.get_include_dirs(arch))
+                lib = ' -L' + join(recipe.get_build_dir(arch.arch),
+                                   recipe.get_host(arch), '.libs') + ' -lffi'
+                add_lib_flags(include, lib)
+                env['LIBFFI_CFLAGS'] = env['CFLAGS'] + include
+                env['LIBFFI_LIBS'] = lib
+                with_libs += ('--with-system-ffi',)
+            if 'libexpat' in self.ctx.recipe_build_order:
+                recipe = Recipe.get_recipe('libexpat', self.ctx)
+                include = ' -I' + join(recipe.get_build_dir(arch.arch), 'dist', 'include')
+                lib = ' -L' + join(recipe.get_build_dir(arch.arch),
+                                   'dist', 'lib') + ' -lexpat'
+                add_lib_flags(include, lib)
+                with_libs += ('--with-system-expat',)
             # Manually add the libs directory, and copy some object
             # files to the current directory otherwise they aren't
             # picked up. This seems necessary because the --sysroot
