@@ -2,7 +2,10 @@ from pythonforandroid.recipe import TargetPythonRecipe, Recipe
 from pythonforandroid.toolchain import shprint, current_directory, info
 from pythonforandroid.patching import (is_darwin, is_api_gt,
                                        check_all, is_api_lt, is_ndk)
+from pythonforandroid.bootstraps.sdl2 import EXCLUDE_EXTS
 from os.path import exists, join, realpath
+from os import walk
+import glob
 import sh
 
 
@@ -169,6 +172,14 @@ class Python2Recipe(TargetPythonRecipe):
 
         # print('python2 build done, exiting for debug')
         # exit(1)
+
+    def include_root(self, arch_name):
+        return join(self.get_build_dir(arch_name),
+                    'python-install', 'include', 'python2.7')
+
+    def link_root(self, arch_name):
+        return join(self.get_build_dir(arch_name),
+                    'python-install', 'lib')
 
     def create_python_bundle(self, dirn, arch):
         info("Filling private directory")

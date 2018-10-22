@@ -9,6 +9,7 @@ options = {'apk': {'debug': None,
                    'dist-name': 'bdisttest_python2',
                    'ndk-version': '10.3.2',
                    'permission': 'VIBRATE',
+                   'arch': 'armeabi-v7a',
                    'window': None,
                    }}
 
