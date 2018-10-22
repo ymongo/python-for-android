@@ -73,6 +73,14 @@ class Python3Recipe(TargetPythonRecipe):
         # available. Using e.g. pyenv makes this easy.
         self.ctx.hostpython = 'python{}'.format(self.version)
 
+    def include_root(self, arch_name):
+        return join(self.ctx.ndk_dir, 'sources', 'python',
+                    self.version, 'include', 'python')
+
+    def link_root(self, arch_name):
+        return join(self.ctx.ndk_dir, 'sources', 'python',
+                    self.version, 'libs', arch_name)
+
     def create_python_bundle(self, dirn, arch):
         ndk_dir = self.ctx.ndk_dir
         py_recipe = self.ctx.python_recipe
@@ -86,7 +94,7 @@ class Python3Recipe(TargetPythonRecipe):
                 join(dirn, 'site-packages'))
 
         info('Renaming .so files to reflect cross-compile')
-        self.reduce_object_file_names(self, join(dirn, "site-packages"))
+        self.reduce_object_file_names(join(dirn, 'site-packages'))
 
 
 recipe = Python3Recipe()
