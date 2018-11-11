@@ -2,16 +2,13 @@
 from distutils.core import setup
 from setuptools import find_packages
 
-options = {'apk': {'debug': None,
-                   'requirements': 'pygame,pyjnius,kivy,python2,android',
+options = {'apk': {'requirements': 'libffi,openssl,sqlite3,requests,peewee,sdl2,pyjnius,kivy,python3',
                    'android-api': 27,
-                   'ndk-api': 19,
-                   'ndk-dir': '/home/asandy/android/crystax-ndk-10.3.2',
-                   'dist-name': 'bdisttest_pygame',
-                   'orientation': 'portrait',
+                   'ndk-api': 21,
+                   'dist-name': 'bdisttest_python3_sqlite_openssl_googlendk',
                    'ndk-version': '10.3.2',
                    'arch': 'armeabi-v7a',
-                   'permission': 'VIBRATE',
+                   'permissions': ['INTERNET', 'VIBRATE'],
                    }}
 
 package_data = {'': ['*.py',
@@ -22,12 +19,12 @@ packages = find_packages()
 print('packages are', packages)
 
 setup(
-    name='testapp_setup_pygame',
+    name='testapp_python3_sqlite_openssl_googlendk',
     version='1.1',
-    description='p4a setup.py test with pygame',
+    description='p4a setup.py test',
     author='Alexander Taylor',
     author_email='alexanderjohntaylor@gmail.com',
     packages=find_packages(),
     options=options,
-    package_data={'testapp': ['*.py', '*.png']}
+    package_data={'testapp_sqlite_openssl': ['*.py', '*.png']}
 )
