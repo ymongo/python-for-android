@@ -1,6 +1,6 @@
-diff -Naur Python-2.7.2.orig/Lib/plat-linux2/DLFCN.py Python-2.7.2/Lib/plat-linux2/DLFCN.py
---- Python-2.7.2.orig/Lib/plat-linux2/DLFCN.py	2011-06-11 17:46:24.000000000 +0200
-+++ Python-2.7.2/Lib/plat-linux2/DLFCN.py	2013-07-29 16:34:45.318131844 +0200
+diff -Naur Python-2.7.15.orig/Lib/plat-linux2/DLFCN.py Python-2.7.15/Lib/plat-linux2/DLFCN.py
+--- Python-2.7.15.orig/Lib/plat-linux2/DLFCN.py	2017-12-29 17:46:24.000000000 +0200
++++ Python-2.7.15/Lib/plat-linux2/DLFCN.py	2017-12-29 16:34:45.318131844 +0200
 @@ -74,10 +74,17 @@
  # Included from gnu/stubs.h
  
