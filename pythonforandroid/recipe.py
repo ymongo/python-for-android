@@ -990,10 +990,7 @@ class CythonRecipe(PythonRecipe):
             env['LDFLAGS'] = (env['LDFLAGS'] +
                               ' -L{}'.format(join(self.ctx.bootstrap.build_dir, 'libs', arch.arch)))
 
-        if self.ctx.python_recipe.from_crystax or self.ctx.python_recipe.name == 'python3':
-            env['LDSHARED'] = env['CC'] + ' -shared'
-        else:
-            env['LDSHARED'] = join(self.ctx.root_dir, 'tools', 'liblink.sh')
+        env['LDSHARED'] = env['CC'] + ' -shared'
         # shprint(sh.whereis, env['LDSHARED'], _env=env)
         env['LIBLINK'] = 'NOTNONE'
         env['NDKPLATFORM'] = self.ctx.ndk_platform

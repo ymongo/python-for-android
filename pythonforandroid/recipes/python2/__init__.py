@@ -24,6 +24,7 @@ class Python2Recipe(TargetPythonRecipe):
                # new 2.7.15 patches
                # ('patches/Python-2.7.15-fix-api-minor-than-21.patch',
                #  is_api_lt(21)), # todo: this should be tested
+               'patches/fix-modules-initialization.patch',
                'patches/Python_{version}-ctypes-libffi-fix-configure.patch',
                'patches/ffi-config.sub-{version}.patch',
                'patches/fix-locale-{version}.patch',
