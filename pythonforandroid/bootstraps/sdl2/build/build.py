@@ -127,8 +127,6 @@ def make_python_zip():
 
     if not exists('private'):
         print('No compiled python is present to zip, skipping.')
-        print('this should only be the case if you are using'
-              'the CrystaX python, python2 or python3')
         return
 
     global python_files

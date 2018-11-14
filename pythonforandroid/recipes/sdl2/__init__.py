@@ -24,8 +24,7 @@ class LibSDL2Recipe(BootstrapNDKRecipe):
         env['PYTHON_INCLUDE_ROOT'] = self.ctx.python_recipe.include_root(arch.arch)
         env['PYTHON_LINK_ROOT'] = self.ctx.python_recipe.link_root(arch.arch)
 
-        if 'python2' in self.ctx.recipe_build_order or \
-                'python3' in self.ctx.recipe_build_order:
+        if self.ctx.python_recipe.name in ('python2', 'python3'):
             env['EXTRA_LDLIBS'] = ' -lpython{}'.format(
                 self.ctx.python_recipe.major_minor_version_string)
             if 'python3' in self.ctx.recipe_build_order:
