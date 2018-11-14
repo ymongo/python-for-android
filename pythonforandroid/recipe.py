@@ -1045,7 +1045,7 @@ class TargetPythonRecipe(Recipe):
     '''The configure arguments needed to build the python recipe. Those are
     used in method :meth:`build_arch` (if not overwritten like python3crystax's
     recipe does).
-    
+
     .. note:: This variable should be properly set in subclass.
     '''
 
@@ -1159,12 +1159,10 @@ class TargetPythonRecipe(Recipe):
 
     def include_root(self, arch_name):
         '''The root directory from which to include headers.'''
-        return join(self.get_build_dir(arch_name),
-                    'Include')
+        return join(self.get_build_dir(arch_name), 'Include')
 
     def link_root(self, arch_name):
-        return join(self.get_build_dir(arch_name),
-                    'android-build')
+        return join(self.get_build_dir(arch_name), 'android-build')
 
     @property
     def major_minor_version_string(self):
@@ -1290,7 +1288,7 @@ class TargetHostPythonRecipe(Recipe):
     '''
 
     name = ''
-    '''The hostpython's recipe name. This should be ``hostpython2`` or 
+    '''The hostpython's recipe name. This should be ``hostpython2`` or
     ``hostpython3``
 
     .. warning:: This must be set in inherited class.'''
