@@ -1,16 +1,18 @@
-from pythonforandroid.recipe import TargetPythonRecipe
+from pythonforandroid.python import GuestPythonRecipe
 from pythonforandroid.patching import (
     is_darwin, is_api_gt, check_all, is_api_lt, is_ndk)
 
 
-class Python2Recipe(TargetPythonRecipe):
+class Python2Recipe(GuestPythonRecipe):
     '''
     The python2's recipe.
 
+    .. note:: This recipe can be built only against API 21+
+
     .. versionchanged:: 0.6.0
         Updated to version 2.7.15 and the build process has been changed in
-        favour of the recently changed class
-        :class:`~pythonforandroid.recipe.TargetPythonRecipe`
+        favour of the recently added class
+        :class:`~pythonforandroid.python.GuestPythonRecipe`
     '''
     version = "2.7.15"
     url = 'https://www.python.org/ftp/python/{version}/Python-{version}.tgz'

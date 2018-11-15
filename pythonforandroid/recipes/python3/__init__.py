@@ -1,16 +1,18 @@
-from pythonforandroid.recipe import TargetPythonRecipe
+from pythonforandroid.python import GuestPythonRecipe
 
 
-class Python3Recipe(TargetPythonRecipe):
+class Python3Recipe(GuestPythonRecipe):
     '''
     The python3's recipe.
+
+    .. note:: This recipe can be built only against API 21+
 
     .. warning:: The support for libraries is temporary disabled. It will be
         enabled in a near future.
 
     .. versionchanged:: 0.6.0
         Refactored into class
-        :class:`~pythonforandroid.recipe.TargetPythonRecipe`
+        :class:`~pythonforandroid.python.GuestPythonRecipe`
     '''
 
     version = '3.7.1'
@@ -19,9 +21,6 @@ class Python3Recipe(TargetPythonRecipe):
 
     depends = ['hostpython3']
     conflicts = ['python3crystax', 'python2']
-
-    # This recipe can be built only against API 21+
-    MIN_NDK_API = 21
 
     configure_args = (
         '--host={android_host}',
