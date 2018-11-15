@@ -1,7 +1,7 @@
-from pythonforandroid.recipe import TargetPythonRecipe
+from pythonforandroid.python import GuestPythonRecipe
 
 
-class Python3Recipe(TargetPythonRecipe):
+class Python3Recipe(GuestPythonRecipe):
     '''
     The python3's recipe.
 
@@ -10,7 +10,7 @@ class Python3Recipe(TargetPythonRecipe):
 
     .. versionchanged:: 0.6.0
         Refactored into class
-        :class:`~pythonforandroid.recipe.TargetPythonRecipe`
+        :class:`~pythonforandroid.python.GuestPythonRecipe`
     '''
 
     version = '3.7.1'
