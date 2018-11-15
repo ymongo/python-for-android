@@ -1,13 +1,13 @@
-from pythonforandroid.recipe import TargetHostPythonRecipe
+from pythonforandroid.python import HostPythonRecipe
 
 
-class Hostpython3Recipe(TargetHostPythonRecipe):
+class Hostpython3Recipe(HostPythonRecipe):
     '''
     The hostpython3's recipe.
 
     .. versionchanged:: 0.6.0
         Refactored into  the new class
-        :class:`~pythonforandroid.recipe.TargetHostPythonRecipe`
+        :class:`~pythonforandroid.python.HostPythonRecipe`
     '''
     version = '3.7.1'
     name = 'hostpython3'
