@@ -155,3 +155,25 @@ def walk_valid_filens(base_dir, invalid_dir_names, invalid_file_patterns):
                     break
             else:
                 yield join(dirn, filen)
+
+
+def get_python_env_for_mk_files(recipe, arch):
+    """
+    Return a dictionary with python environment variables needed to build some
+    recipes that uses Android.mk files. Those paths are a little special
+    because must be relative from our recipes build folder "other_builds".
+
+    .. versionadded:: 0.6.0
+    """
+
+    env = {}
+    other_builds = join(recipe.ctx.build_dir, 'other_builds') + '/'
+    env['MK_PYTHON_INCLUDE_ROOT'] = \
+        recipe.ctx.python_recipe.include_root(arch.arch)[len(other_builds):]
+    env['MK_PYTHON_LINK_ROOT'] = \
+        recipe.ctx.python_recipe.link_root(arch.arch)[len(other_builds):]
+    env['EXTRA_LDLIBS'] = ' -lpython{}'.format(
+        recipe.ctx.python_recipe.major_minor_version_string)
+    if 'python3' in recipe.ctx.python_recipe.name:
+        env['EXTRA_LDLIBS'] += 'm'
+    return env

@@ -18,9 +18,6 @@ class LibSDL2Recipe(BootstrapNDKRecipe):
     def get_recipe_env(self, arch=None):
         env = super(LibSDL2Recipe, self).get_recipe_env(arch)
 
-        py2 = self.get_recipe('python2', arch.ctx)
-        env['PYTHON2_NAME'] = py2.get_dir_name()
-
         env['PYTHON_INCLUDE_ROOT'] = self.ctx.python_recipe.include_root(arch.arch)
         env['PYTHON_LINK_ROOT'] = self.ctx.python_recipe.link_root(arch.arch)
 
