@@ -243,10 +243,15 @@ class Bootstrap(object):
             return
         strip = sh.Command(strip)
 
-        filens = shprint(sh.find, join(self.dist_dir, '_python_bundle',
-                                       '_python_bundle', 'modules'),
-                         join(self.dist_dir, 'libs'),
-                         '-iname', '*.so', _env=env).stdout.decode('utf-8')
+        if self.ctx.python_recipe.name == 'python2legacy':
+            filens = shprint(sh.find, join(self.dist_dir, 'private'),
+                             join(self.dist_dir, 'libs'),
+                             '-iname', '*.so', _env=env).stdout.decode('utf-8')
+        else:
+            filens = shprint(sh.find, join(self.dist_dir, '_python_bundle',
+                                           '_python_bundle', 'modules'),
+                             join(self.dist_dir, 'libs'),
+                             '-iname', '*.so', _env=env).stdout.decode('utf-8')
 
         logger.info('Stripping libraries in private dir')
         for filen in filens.split('\n'):

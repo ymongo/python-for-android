@@ -129,6 +129,7 @@ def make_python_zip():
         print('No compiled python is present to zip, skipping.')
         return
 
+    print('This should only be the case if you are using the python2legacy')
     global python_files
     d = realpath(join('private', 'lib', 'python2.7'))
 

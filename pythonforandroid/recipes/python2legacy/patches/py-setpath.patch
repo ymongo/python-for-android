@@ -1,0 +1,143 @@
+diff -Naurp python2.orig/Doc/c-api/init.rst python2/Doc/c-api/init.rst
+--- python2.orig/Doc/c-api/init.rst	2018-04-30 00:47:33.000000000 +0200
++++ python2/Doc/c-api/init.rst	2018-11-13 02:23:22.502924384 +0100
+@@ -21,6 +21,7 @@ Initializing and finalizing the interpre
+       single: PyEval_AcquireLock()
+       single: modules (in module sys)
+       single: path (in module sys)
++      single: Py_SetPath()
+       module: __builtin__
+       module: __main__
+       module: sys
+@@ -31,7 +32,8 @@ Initializing and finalizing the interpre
+
+    Initialize the Python interpreter.  In an application embedding  Python, this
+    should be called before using any other Python/C API functions; with the
+-   exception of :c:func:`Py_SetProgramName`, :c:func:`Py_SetPythonHome`, :c:func:`PyEval_InitThreads`,
++   exception of :c:func:`Py_SetProgramName`, :c:func:`Py_SetPath`,
++   :c:func:`Py_SetPythonHome`, :c:func:`PyEval_InitThreads`,
+    :c:func:`PyEval_ReleaseLock`, and :c:func:`PyEval_AcquireLock`. This initializes
+    the table of loaded modules (``sys.modules``), and creates the fundamental
+    modules :mod:`__builtin__`, :mod:`__main__` and :mod:`sys`.  It also initializes
+@@ -197,6 +199,25 @@ Process-wide parameters
+
+    .. XXX should give the exact rules
+
++.. c:function::  void Py_SetPath(const wchar_t *)
++
++   .. index::
++      triple: module; search; path
++      single: path (in module sys)
++      single: Py_GetPath()
++
++   Set the default module search path.  If this function is called before
++   :c:func:`Py_Initialize` then :c:func:`Py_GetPath` won't attempt to compute
++   a default serarch path but uses the provided one in stead.  This is useful
++   if Python is being embedded by an application that has full knowledge
++   of the location of all modules.  The path components should be separated
++   by semicolons.
++
++   This also causes `sys.executable` to be set only to the raw program name
++   (see :c:func:`Py_SetProgramName`) and `for sys.prefix` and
++   `sys.exec_prefix` to be empty.  It is up to the caller to modify these if
++   required after calling :c:func:`Py_Initialize`.
++
+
+ .. c:function:: const char* Py_GetVersion()
+
+diff -Naurp python2.orig/Include/pythonrun.h python2/Include/pythonrun.h
+--- python2.orig/Include/pythonrun.h	2018-04-30 00:47:33.000000000 +0200
++++ python2/Include/pythonrun.h	2018-11-13 02:06:35.238933990 +0100
+@@ -104,6 +104,7 @@ PyAPI_FUNC(char *) Py_GetProgramFullPath
+ PyAPI_FUNC(char *) Py_GetPrefix(void);
+ PyAPI_FUNC(char *) Py_GetExecPrefix(void);
+ PyAPI_FUNC(char *) Py_GetPath(void);
++PyAPI_FUNC(void)      Py_SetPath(const char *);
+
+ /* In their own files */
+ PyAPI_FUNC(const char *) Py_GetVersion(void);
+diff -Naurp python2.orig/Modules/getpath.c python2/Modules/getpath.c
+--- python2.orig/Modules/getpath.c	2018-04-30 00:47:33.000000000 +0200
++++ python2/Modules/getpath.c	2018-11-13 02:15:37.370928820 +0100
+@@ -89,6 +89,10 @@
+  * directory).  This seems to make more sense given that currently the only
+  * known use of sys.prefix and sys.exec_prefix is for the ILU installation
+  * process to find the installed Python tree.
++ *
++ * An embedding application can use Py_SetPath() to override all of
++ * these automatic path computations.
++ *
+  */
+
+ #ifdef __cplusplus
+@@ -653,6 +657,23 @@ calculate_path(void)
+
+
+ /* External interface */
++void
++Py_SetPath(const char *path)
++{
++	if (module_search_path != NULL) {
++		free(module_search_path);
++		module_search_path = NULL;
++	}
++	if (path != NULL) {
++		extern char *Py_GetProgramName(void);
++		char *prog = Py_GetProgramName();
++		wcsncpy(progpath, prog, MAXPATHLEN);
++		exec_prefix[0] = prefix[0] = L'\0';
++		module_search_path = malloc((wcslen(path) + 1) * sizeof(char));
++		if (module_search_path != NULL)
++			wcscpy(module_search_path, path);
++	}
++}
+
+ char *
+ Py_GetPath(void)
+diff -Naurp python2.orig/PC/getpathp.c python2/PC/getpathp.c
+--- python2.orig/PC/getpathp.c	2018-04-30 00:47:33.000000000 +0200
++++ python2/PC/getpathp.c	2018-11-13 02:15:37.414928820 +0100
+@@ -51,6 +51,9 @@
+     exe, some very strange installation setup) you get a path with
+     some default, but relative, paths.
+
++  * An embedding application can use Py_SetPath() to override all of
++    these automatic path computations.
++
+    ---------------------------------------------------------------- */
+
+
+@@ -79,6 +82,9 @@
+  * The approach is an adaptation for Windows of the strategy used in
+  * ../Modules/getpath.c; it uses the Windows Registry as one of its
+  * information sources.
++ *
++ * Py_SetPath() can be used to override this mechanism.  Call Py_SetPath
++ * with a semicolon separated path prior to calling Py_Initialize.
+  */
+
+ #ifndef LANDMARK
+@@ -682,6 +688,23 @@ calculate_path(void)
+
+
+ /* External interface */
++void
++Py_SetPath(const char *path)
++{
++	if (module_search_path != NULL) {
++		free(module_search_path);
++		module_search_path = NULL;
++	}
++	if (path != NULL) {
++		extern char *Py_GetProgramName(void);
++		char *prog = Py_GetProgramName();
++		wcsncpy(progpath, prog, MAXPATHLEN);
++		prefix[0] = L'\0';
++		module_search_path = malloc((wcslen(path) + 1) * sizeof(char));
++		if (module_search_path != NULL)
++			wcscpy(module_search_path, path);
++	}
++}
+
+ char *
+ Py_GetPath(void)

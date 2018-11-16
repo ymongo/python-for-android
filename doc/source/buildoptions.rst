@@ -198,6 +198,13 @@ This bootstrap will eventually be deprecated in favour of sdl2, but
 not before the sdl2 bootstrap includes all the features that would be
 lost.
 
+.. warning:: In order to successfully build a pygame bootstrap you will need
+    to use an android ndk previous to the unified headers feature, otherwise
+    the build will fail, because pygame depends on sdl 1.2.x and the jpeg
+    library included into the sdl libs needs some headers that are removed
+    since the unified headers feature was introduced. The recommended ndk
+    version to be used is r13b.
+
 Build options
 %%%%%%%%%%%%%
 

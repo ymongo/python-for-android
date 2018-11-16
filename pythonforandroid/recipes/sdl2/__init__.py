@@ -10,7 +10,8 @@ class LibSDL2Recipe(BootstrapNDKRecipe):
 
     dir_name = 'SDL'
 
-    depends = [('python2', 'python3', 'python3crystax'), 'sdl2_image', 'sdl2_mixer', 'sdl2_ttf']
+    depends = [('python2', 'python2legacy', 'python3', 'python3crystax'),
+               'sdl2_image', 'sdl2_mixer', 'sdl2_ttf']
     conflicts = ['sdl', 'pygame', 'pygame_bootstrap_components']
 
     patches = ['add_nativeSetEnv.patch']
@@ -21,7 +22,7 @@ class LibSDL2Recipe(BootstrapNDKRecipe):
         env['PYTHON_INCLUDE_ROOT'] = self.ctx.python_recipe.include_root(arch.arch)
         env['PYTHON_LINK_ROOT'] = self.ctx.python_recipe.link_root(arch.arch)
 
-        if self.ctx.python_recipe.name in ('python2', 'python3'):
+        if not self.ctx.python_recipe.from_crystax:
             env['EXTRA_LDLIBS'] = ' -lpython{}'.format(
                 self.ctx.python_recipe.major_minor_version_string)
             if 'python3' in self.ctx.recipe_build_order:

@@ -541,6 +541,12 @@ class Context(object):
         '''Returns the location of site-packages in the python-install build
         dir.
         '''
+        if self.python_recipe.name == 'python2legacy':
+            return join(self.get_python_install_dir(),
+                        'lib', 'python2.7', 'site-packages')
+
+        # Only python2legacy is a special case, other
+        # python recipes use the python install dir
         return self.get_python_install_dir()
 
     def get_libs_dir(self, arch):

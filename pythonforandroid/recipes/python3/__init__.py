@@ -18,7 +18,7 @@ class Python3Recipe(GuestPythonRecipe):
     name = 'python3'
 
     depends = ['hostpython3']
-    conflicts = ['python3crystax', 'python2']
+    conflicts = ['python3crystax', 'python2', 'python2legacy']
     # opt_depends = ['openssl', 'sqlite3']
 
     configure_args = (
