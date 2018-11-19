@@ -162,9 +162,23 @@ class GuestPythonRecipe(TargetPythonRecipe):
     '''The file extensions from site packages dir that we don't want to be
     included in our python bundle.'''
 
+    opt_depends = ['sqlite3']
+    '''The optional libraries which we would like to get our python linked'''
+
     def __init__(self, *args, **kwargs):
         self._ctx = None
         super(GuestPythonRecipe, self).__init__(*args, **kwargs)
+
+    def set_libs_flags(self, env, arch):
+        '''Takes care to properly link libraries with python depending on our
+        requirements and the attribute :attr:`opt_depends`.
+        '''
+        if 'sqlite3' in self.ctx.recipe_build_order:
+            info('Activating flags for sqlite3')
+            recipe = Recipe.get_recipe('sqlite3', self.ctx)
+            env['CPPFLAGS'] = env.get('CPPFLAGS', '') + recipe.get_build_dir(arch.arch)
+            env['LDFLAGS'] = env.get('LDFLAGS', '') + recipe.get_lib_dir(arch) + ' -lsqlite3'
+        return env
 
     def get_recipe_env(self, arch=None, with_flags_in_cc=True):
         if self.from_crystax:
@@ -321,6 +335,7 @@ class GuestPythonRecipe(TargetPythonRecipe):
 
         with current_directory(build_dir):
             env = self.get_recipe_env(arch)
+            env = self.set_libs_flags(env, arch)
 
             android_build = sh.Command(
                 join(recipe_build_dir,
