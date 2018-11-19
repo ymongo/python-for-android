@@ -18,7 +18,6 @@ class Python2Recipe(GuestPythonRecipe):
 
     depends = ['hostpython2']
     conflicts = ['python3crystax', 'python3', 'python2legacy']
-    # opt_depends = ['openssl', 'sqlite3']
 
     patches = [
                # new 2.7.15 patches
