@@ -5,7 +5,11 @@ class Python3Recipe(GuestPythonRecipe):
     '''
     The python3's recipe.
 
-    .. note:: This recipe can be built only against API 21+
+    .. note:: This recipe can be built only against API 21+. Also, in order to
+        build certain python modules, we need to add some extra recipes to our
+        build requirements:
+
+            - ctypes: you must add the recipe for ``libffi``.
 
     .. warning:: The support for libraries is temporary disabled. It will be
         enabled in a near future.
