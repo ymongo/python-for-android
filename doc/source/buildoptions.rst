@@ -17,6 +17,11 @@ This option builds Python 2.7.2 for your selected Android
 architecture. There are no special requirements, all the building is
 done locally.
 
+.. note:: if you add libffi to your requirements, ctypes will be linked to it
+          instead of building the included one in python2 sources. This may be
+          a good idea, because the libffi included in python sources is an old
+          version of libffi and may have some security issues.
+
 
 python3
 ~~~~~~~
@@ -26,6 +31,10 @@ and works with any recent version of the Android NDK.
 
 Select Python 3 by adding it to your requirements,
 e.g. ``--requirements=python3``.
+
+.. note:: ctypes is not included automatically, if you would like to use it
+          then add libffi to your requirements,
+          e.g. ``--requirements=kivy,libffi,python3``.
 
 
 CrystaX python3
