@@ -63,12 +63,14 @@ def build(target_python, requirements):
             requirements.remove(i)
         elif target_python.name != 'python3crystax' and i.name == 'python3crystax':
             print('removing python recipe dependency: {} for {}  '
-                  '[this is not a possible build, we already know that]'.format(i.name, target_python.name))
+                  '[this is not a possible build, we already know that]'.format(
+                      i.name, target_python.name))
             requirements.remove(i)
         elif i.name in ('hostpython2', 'hostpython3', 'hostpython3crystax') and \
                 i.name != host_python:
             print('removing python recipe dependency: {} for {}  '
-                  '[this is not a possible build, we already know that]'.format(i.name, target_python.name))
+                  '[this is not a possible build, we already know that]'.format(
+                      i.name, target_python.name))
             requirements.remove(i)
     android_sdk_home = os.environ['ANDROID_SDK_HOME']
     android_ndk_home = os.environ['ANDROID_NDK_HOME']
