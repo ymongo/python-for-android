@@ -194,8 +194,6 @@ class GuestPythonRecipe(TargetPythonRecipe):
             info('Activating flags for openssl')
             recipe = Recipe.get_recipe('openssl', self.ctx)
             add_flags(recipe.include_flags(arch), recipe.link_flags(arch))
-            self.configure_args += \
-                ('--with-openssl=' + recipe.get_build_dir(arch.arch),)
         return env
 
     def get_recipe_env(self, arch=None, with_flags_in_cc=True):
