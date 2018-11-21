@@ -21,6 +21,11 @@ class OpenSSLRecipe(Recipe):
     ``-lcrypto1.1 -lssl1.1``. Or better, you could do it dynamically
     using the methods: :meth:`include_flags` and :meth:`link_flags`.
 
+    .. warning:: This recipe is very sensitive because is used for our core
+        recipes, the python recipes. The used API should match with the one
+        used in our python build, otherwise we will be unable to build the
+        _ssl.so python module.
+
     .. versionchanged:: 0.6.0
 
         - The gcc compiler has been deprecated in favour of clang and libraries
