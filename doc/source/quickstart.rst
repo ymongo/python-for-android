@@ -82,10 +82,11 @@ same packages but without ``lib32-`` or ``-multilib``::
 Installing Android SDK
 ~~~~~~~~~~~~~~~~~~~~~~
 
-You need to download and unpack the Android SDK and NDK to a directory (let's say $HOME/Documents/):
+You need to download and unpack the Android SDK tools and NDK to a directory
+(let's say $HOME/Documents/):
 
-- `Android SDK <https://developer.android.com/studio/index.html>`_
-- `Android NDK <https://developer.android.com/ndk/downloads/index.html>`_
+- `Android SDK tools (4333796) (<https://developer.android.com/studio/index.html>`_
+- `Android NDK (r17b) <https://developer.android.com/ndk/downloads/index.html>`_
 
 For the Android SDK, you can download 'just the command line
 tools'. When you have extracted these you'll see only a directory
