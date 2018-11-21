@@ -15,7 +15,7 @@ ENV HOME_DIR="/home/${USER}"
 ENV WORK_DIR="${HOME_DIR}" \
     PATH="${HOME_DIR}/.local/bin:${PATH}"
 # get the latest version from https://developer.android.com/ndk/downloads/index.html
-ENV ANDROID_NDK_VERSION="16b"
+ENV ANDROID_NDK_VERSION="17b"
 # get the latest version from https://www.crystax.net/en/download
 ENV CRYSTAX_NDK_VERSION="10.3.2"
 # get the latest version from https://developer.android.com/studio/index.html
