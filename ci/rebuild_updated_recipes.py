@@ -25,6 +25,7 @@ Current limitations:
 import sh
 import os
 from pythonforandroid.build import Context
+from pythonforandroid.recipe import TargetPythonRecipe
 from pythonforandroid.graph import get_recipe_order_and_bootstrap
 from pythonforandroid.toolchain import current_directory
 from ci.constants import TargetPython, CORE_RECIPES, BROKEN_RECIPES
@@ -54,6 +55,21 @@ def build(target_python, requirements):
     if not requirements:
         return
     testapp = 'setup_testapp_python2.py'
+    exclude = set()
+    host_python = 'host' + target_python.name
+    for i in requirements[:]:
+        if isinstance(i, TargetPythonRecipe):
+            exclude.add(i.name)
+            requirements.remove(i)
+        elif target_python.name != 'python3crystax' and i.name == 'python3crystax':
+            print('removing python recipe dependency: {} for {}  '
+                  '[this is not a possible build, we already know that]'.format(i.name, target_python.name))
+            requirements.remove(i)
+        elif i.name in ('hostpython2', 'hostpython3', 'hostpython3crystax') and \
+                i.name != host_python:
+            print('removing python recipe dependency: {} for {}  '
+                  '[this is not a possible build, we already know that]'.format(i.name, target_python.name))
+            requirements.remove(i)
     android_sdk_home = os.environ['ANDROID_SDK_HOME']
     android_ndk_home = os.environ['ANDROID_NDK_HOME']
     crystax_ndk_home = os.environ['CRYSTAX_NDK_HOME']
@@ -63,8 +79,10 @@ def build(target_python, requirements):
     requirements.add(target_python.name)
     requirements = ','.join(requirements)
     print('requirements:', requirements)
+    print('excluded:', exclude)
     with current_directory('testapps/'):
         try:
+            print('RUR - Testing python recipe: ' + target_python.name)
             for line in sh.python(
                     testapp, 'apk', '--sdk-dir', android_sdk_home,
                     '--ndk-dir', android_ndk_home, '--bootstrap', 'sdl2', '--requirements',
