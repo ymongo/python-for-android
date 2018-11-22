@@ -31,12 +31,12 @@ Ensure you have the latest Cython version::
 
     pip install --upgrade cython
 
-You must have android SDK TOOLS (Or Android Studio) and NDK. The SDK TOOLS
-defines the Android functions you can use.  The NDK is used for compilation.
-Right now, it's preferred to use:
+You must have android SDK and NDK. The SDK defines the Android
+functions you can use.  The NDK is used for compilation. Right now,
+it's preferred to use:
 
-- SDK TOOLS VERSION: 4333796
-- NDK VERSION: r17b
+- SDK API 8 or 14 (15 will only work with a newly released NDK)
+- NDK r5b or r7
 
 You can download them at::
 
