@@ -93,8 +93,22 @@ named ``tools``, and you will need to run extra commands to install
 the SDK packages needed. 
 
 For Android NDK, note that modern releases will only work on a 64-bit
-operating system. If you are using a 32-bit distribution (or hardware),
-the latest useable NDK version is r10e, which can be downloaded here:
+operating system. The recommended NDK version to use is r17c:
+
+ - `Linux (64-bits) <https://dl.google.com/android/repository/android-ndk-r17c-linux-x86_64.zip>`_
+ - `Macos X (64-bits) <https://dl.google.com/android/repository/android-ndk-r17c-darwin-x86_64.zip>`_
+
+.. note::
+    Windows users should create a virtual machine with an linux os installed
+    (recommended ubuntu os for beginners or debian for more experienced users)
+    and then you can follow the described instructions.
+
+.. warning::
+    Versions below ndk-r17 may cause troubles while compiling some recipes. We
+    have tested against ndk versions r17b and r17c.
+
+If you are using a 32-bit distribution (or hardware),
+the latest usable NDK version is r10e, which can be downloaded here:
 
 - `Legacy 32-bit Linux NDK r10e <http://dl.google.com/android/ndk/android-ndk-r10e-linux-x86.bin>`_
 

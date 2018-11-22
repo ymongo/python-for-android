@@ -15,7 +15,7 @@ ENV HOME_DIR="/home/${USER}"
 ENV WORK_DIR="${HOME_DIR}" \
     PATH="${HOME_DIR}/.local/bin:${PATH}"
 # get the latest version from https://developer.android.com/ndk/downloads/index.html
-ENV ANDROID_NDK_VERSION="16b"
+ENV ANDROID_NDK_VERSION="17c"
 # get the latest version from https://www.crystax.net/en/download
 ENV CRYSTAX_NDK_VERSION="10.3.2"
 # get the latest version from https://developer.android.com/studio/index.html
@@ -44,7 +44,7 @@ RUN apt update -qq && apt install -qq --yes --no-install-recommends \
 RUN dpkg --add-architecture i386 && apt update -qq && apt install -qq --yes --no-install-recommends \
     build-essential ccache git libncurses5:i386 libstdc++6:i386 libgtk2.0-0:i386 \
     libpangox-1.0-0:i386 libpangoxft-1.0-0:i386 libidn11:i386 python2.7 python2.7-dev \
-    openjdk-8-jdk zip unzip zlib1g-dev zlib1g:i386
+    libffi-dev openjdk-8-jdk zip unzip zlib1g-dev zlib1g:i386
 
 # specific recipes dependencies (e.g. libffi requires autoreconf binary)
 RUN apt install -qq --yes --no-install-recommends \
