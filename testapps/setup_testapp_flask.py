@@ -4,7 +4,8 @@ from setuptools import find_packages
 
 options = {'apk': {'debug': None,
                    'requirements': 'python2,flask,pyjnius',
-                   'android-api': 19,
+                   'android-api': 27,
+                   'ndk-api': 21,
                    'ndk-dir': '/home/asandy/android/crystax-ndk-10.3.2',
                    'dist-name': 'testapp_flask',
                    'ndk-version': '10.3.2',
