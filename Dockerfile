@@ -26,7 +26,7 @@ RUN apt -y update -qq \
 
 
 ENV ANDROID_NDK_HOME="${ANDROID_HOME}/android-ndk"
-ENV ANDROID_NDK_VERSION="16b"
+ENV ANDROID_NDK_VERSION="17c"
 ENV ANDROID_NDK_HOME_V="${ANDROID_NDK_HOME}-r${ANDROID_NDK_VERSION}"
 
 # get the latest version from https://developer.android.com/ndk/downloads/index.html
@@ -97,7 +97,7 @@ RUN dpkg --add-architecture i386 \
         build-essential ccache git python2.7 python2.7-dev \
         libncurses5:i386 libstdc++6:i386 libgtk2.0-0:i386 \
         libpangox-1.0-0:i386 libpangoxft-1.0-0:i386 libidn11:i386 \
-        zip zlib1g-dev zlib1g:i386 \
+        libffi-dev zip zlib1g-dev zlib1g:i386 \
     && apt -y autoremove \
     && apt -y clean
 
