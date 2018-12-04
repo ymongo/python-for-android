@@ -4,26 +4,32 @@ from pythonforandroid.toolchain import (
     info,
     shprint,
 )
-from os.path import join
 import sh
 
 
 class PyCryptoRecipe(CompiledComponentsPythonRecipe):
-    version = '2.6.1'
-    url = 'https://pypi.python.org/packages/source/p/pycrypto/pycrypto-{version}.tar.gz'
-    depends = ['openssl', 'python2']
+    version = '2.7a1'
+    url = 'https://github.com/dlitz/pycrypto/archive/v{version}.zip'
+    depends = ['openssl', ('python2', 'python3')]
     site_packages_name = 'Crypto'
 
     patches = ['add_length.patch']
 
-    def get_recipe_env(self, arch=None):
+    def get_recipe_env(self, arch=None, clang=True):
         env = super(PyCryptoRecipe, self).get_recipe_env(arch)
-        openssl_build_dir = Recipe.get_recipe('openssl', self.ctx).get_build_dir(arch.arch)
-        env['CC'] = '%s -I%s' % (env['CC'], join(openssl_build_dir, 'include'))
+        openssl_recipe = Recipe.get_recipe('openssl', self.ctx)
+        env['CC'] = '%s %s -I%s' % (
+            env['CC'], openssl_recipe.include_flags(arch),
+            self.ctx.python_recipe.include_root(arch.arch))
+
         env['LDFLAGS'] = env['LDFLAGS'] + ' -L{}'.format(
             self.ctx.get_libs_dir(arch.arch) +
-            '-L{}'.format(self.ctx.libs_dir)) + ' -L{}'.format(
-            openssl_build_dir)
+            '-L{}'.format(self.ctx.libs_dir)) + openssl_recipe.link_flags(arch)
+        env['LDFLAGS'] += ' -L{}'.format(self.ctx.python_recipe.link_root(arch.arch))
+        env['LDFLAGS'] += ' -lpython{}'.format(self.ctx.python_recipe.major_minor_version_string)
+        if 'python3' in self.ctx.python_recipe.name:
+            env['LDFLAGS'] += 'm'
+
         env['EXTRA_CFLAGS'] = '--host linux-armv'
         env['ac_cv_func_malloc_0_nonnull'] = 'yes'
         return env
