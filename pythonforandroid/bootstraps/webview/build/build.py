@@ -2,16 +2,17 @@
 
 from __future__ import print_function
 
-from os.path import dirname, join, isfile, realpath, relpath, split, exists
-from os import makedirs
+from os.path import dirname, join, isfile, realpath, relpath, split, exists, basename
+from os import makedirs, remove, listdir
 import os
 import tarfile
 import time
+import json
 import subprocess
 import shutil
 from zipfile import ZipFile
 import sys
-import re
+from distutils.version import LooseVersion
 
 from fnmatch import fnmatch
 
@@ -46,13 +47,23 @@ BLACKLIST_PATTERNS = [
     '*.swp',
 ]
 
-WHITELIST_PATTERNS = []
+WHITELIST_PATTERNS = ['pyconfig.h']
 
 python_files = []
 
 
 environment = jinja2.Environment(loader=jinja2.FileSystemLoader(
     join(curdir, 'templates')))
+
+
+def try_unlink(fn):
+    if exists(fn):
+        os.unlink(fn)
+
+
+def ensure_dir(path):
+    if not exists(path):
+        makedirs(path)
 
 
 def render(template, dest, **kwargs):
@@ -117,7 +128,6 @@ def make_python_zip():
 
     if not exists('private'):
         print('No compiled python is present to zip, skipping.')
-        print('this should only be the case if you are using the CrystaX python')
         return
 
     global python_files
@@ -220,11 +230,9 @@ def make_package(args):
     #     sys.exit(-1)
 
     # Delete the old assets.
-    if exists('assets/public.mp3'):
-        os.unlink('assets/public.mp3')
-
-    if exists('assets/private.mp3'):
-        os.unlink('assets/private.mp3')
+    try_unlink('src/main/assets/public.mp3')
+    try_unlink('src/main/assets/private.mp3')
+    ensure_dir('src/main/assets')
 
     # In order to speedup import and initial depack,
     # construct a python27.zip
@@ -232,18 +240,17 @@ def make_package(args):
 
     # Package up the private data (public not supported).
     tar_dirs = [args.private]
-    if exists('private'):
-        tar_dirs.append('private')
-    if exists('crystax_python'):
-        tar_dirs.append('crystax_python')
+    for python_bundle_dir in ('private', 'crystax_python', '_python_bundle'):
+        if exists(python_bundle_dir):
+            tar_dirs.append(python_bundle_dir)
     tar_dirs.append('webview_includes')
     if args.private:
-        make_tar('assets/private.mp3', tar_dirs, args.ignore_path)
+        make_tar('src/main/assets/private.mp3', tar_dirs, args.ignore_path)
     # else:
-    #     make_tar('assets/private.mp3', ['private'])
+    #     make_tar('src/main/assets/private.mp3', ['private'])
 
     # if args.dir:
-    #     make_tar('assets/public.mp3', [args.dir], args.ignore_path)
+    #     make_tar('src/main/assets/public.mp3', [args.dir], args.ignore_path)
 
     # # Build.
     # try:
@@ -257,19 +264,34 @@ def make_package(args):
     # Prepare some variables for templating process
 
     default_icon = 'templates/kivy-icon.png'
-    shutil.copy(args.icon or default_icon, 'res/drawable/icon.png')
+    shutil.copy(args.icon or default_icon, 'src/main/res/drawable/icon.png')
 
     default_presplash = 'templates/kivy-presplash.jpg'
     shutil.copy(args.presplash or default_presplash,
-                'res/drawable/presplash.jpg')
+                'src/main/res/drawable/presplash.jpg')
 
+    # default_ant_properties = 'templates/ant.properties'
+    # shutil.copy(default_ant_properties, 'ant.properties')
+
+    jars = []
     # If extra Java jars were requested, copy them into the libs directory
     if args.add_jar:
         for jarname in args.add_jar:
             if not exists(jarname):
                 print('Requested jar does not exist: {}'.format(jarname))
                 sys.exit(-1)
-            shutil.copy(jarname, 'libs')
+            shutil.copy(jarname, 'src/main/libs')
+            jars.append(basename(jarname))
+    # if extra aar were requested, copy them into the libs directory
+    aars = []
+    if args.add_aar:
+        ensure_dir("libs")
+        for aarname in args.add_aar:
+            if not exists(aarname):
+                print('Requested aar does not exists: {}'.format(aarname))
+                sys.exit(-1)
+            shutil.copy(aarname, 'libs')
+            aars.append(basename(aarname).rsplit('.', 1)[0])
 
     versioned_name = (args.name.replace(' ', '').replace('\'', '') +
                       '-' + args.version)
@@ -316,7 +338,7 @@ def make_package(args):
         service_names.append(name)
         render(
             'Service.tmpl.java',
-            'src/{}/Service{}.java'.format(args.package.replace(".", "/"), name.capitalize()),
+            'src/main/java/{}/Service{}.java'.format(args.package.replace(".", "/"), name.capitalize()),
             name=name,
             entrypoint=entrypoint,
             args=args,
@@ -325,14 +347,51 @@ def make_package(args):
             service_id=sid + 1,
         )
 
+    # Find the SDK directory and target API
+    with open('project.properties', 'r') as fileh:
+        target = fileh.read().strip()
+    android_api = target.split('-')[1]
+    with open('local.properties', 'r') as fileh:
+        sdk_dir = fileh.read().strip()
+    sdk_dir = sdk_dir[8:]
+
+    # Try to build with the newest available build tools
+    build_tools_versions = listdir(join(sdk_dir, 'build-tools'))
+    build_tools_versions = sorted(build_tools_versions,
+                                  key=LooseVersion)
+    build_tools_version = build_tools_versions[-1]
+
     render(
         'AndroidManifest.tmpl.xml',
-        'AndroidManifest.xml',
+        'src/main/AndroidManifest.xml',
         args=args,
         service=service,
         service_names=service_names,
-        )
+        android_api=android_api)
 
+    # Copy the AndroidManifest.xml to the dist root dir so that ant
+    # can also use it
+    if exists('AndroidManifest.xml'):
+        remove('AndroidManifest.xml')
+    shutil.copy(join('src', 'main', 'AndroidManifest.xml'),
+                'AndroidManifest.xml')
+
+    render(
+        'strings.tmpl.xml',
+        'src/main/res/values/strings.xml',
+        args=args,
+        private_version=str(time.time()))
+
+    # gradle build templates
+    render(
+        'build.tmpl.gradle',
+        'build.gradle',
+        args=args,
+        aars=aars,
+        android_api=android_api,
+        build_tools_version=build_tools_version)
+
+    # ant build templates
     render(
         'build.tmpl.xml',
         'build.xml',
@@ -340,33 +399,27 @@ def make_package(args):
         versioned_name=versioned_name)
 
     render(
-        'strings.tmpl.xml',
-        'res/values/strings.xml',
-        args=args)
-
-    render(
         'custom_rules.tmpl.xml',
         'custom_rules.xml',
         args=args)
 
     render('WebViewLoader.tmpl.java',
-           'src/org/kivy/android/WebViewLoader.java',
+           'src/main/java/org/kivy/android/WebViewLoader.java',
            args=args)
-
-    with open(join(dirname(__file__), 'res',
-                   'values', 'strings.xml')) as fileh:
-        lines = fileh.read()
-
-    with open(join(dirname(__file__), 'res',
-                   'values', 'strings.xml'), 'w') as fileh:
-        fileh.write(re.sub(r'"private_version">[0-9\.]*<',
-                           '"private_version">{}<'.format(
-                               str(time.time())), lines))
 
 
 def parse_args(args=None):
     global BLACKLIST_PATTERNS, WHITELIST_PATTERNS
-    default_android_api = 12
+    # Get the default minsdk, equal to the NDK API that this dist is built against
+    with open('dist_info.json', 'r') as fileh:
+        info = json.load(fileh)
+        if 'ndk_api' not in info:
+            print('WARNING: Failed to read ndk_api from dist info, defaulting to 12')
+            ndk_api = default_min_api = 12  # The old default before ndk_api was introduced
+        else:
+            default_min_api = info['ndk_api']
+            ndk_api = info['ndk_api']
+
     import argparse
     ap = argparse.ArgumentParser(description='''\
 Package a Python application for Android.
@@ -425,22 +478,30 @@ tools directory of the Android SDK.
                     help=('Add a Java .jar to the libs, so you can access its '
                           'classes with pyjnius. You can specify this '
                           'argument more than once to include multiple jars'))
+    ap.add_argument('--add-aar', dest='add_aar', action='append',
+                    help=('Add an aar dependency manually'))
+    ap.add_argument('--depend', dest='depends', action='append',
+                    help=('Add a external dependency '
+                          '(eg: com.android.support:appcompat-v7:19.0.1)'))
+    # The --sdk option has been removed, it is ignored in favour of
+    # --android-api handled by toolchain.py
     ap.add_argument('--sdk', dest='sdk_version', default=-1,
                     type=int, help=('Android SDK version to use. Default to '
                                     'the value of minsdk'))
     ap.add_argument('--minsdk', dest='min_sdk_version',
-                    default=default_android_api, type=int,
-                    help=('Minimum Android SDK version to use. Default to '
-                          'the value of ANDROIDAPI, or {} if not set'
-                          .format(default_android_api)))
+                    default=default_min_api, type=int,
+                    help=('Minimum Android SDK version that the app supports. '
+                          'Defaults to {}.'.format(default_min_api)))
+    ap.add_argument('--allow-minsdk-ndkapi-mismatch', default=False,
+                    action='store_true',
+                    help=('Allow the --minsdk argument to be different from '
+                          'the discovered ndk_api in the dist'))
     ap.add_argument('--intent-filters', dest='intent_filters',
                     help=('Add intent-filters xml rules to the '
                           'AndroidManifest.xml file. The argument is a '
                           'filename containing xml. The filename should be '
                           'located relative to the python-for-android '
                           'directory'))
-    ap.add_argument('--with-billing', dest='billing_pubkey',
-                    help='If set, the billing service will be added (not implemented)')
     ap.add_argument('--service', dest='services', action='append',
                     help='Declare a new service entrypoint: '
                          'NAME:PATH_TO_PY[:foreground]')
@@ -457,12 +518,22 @@ tools directory of the Android SDK.
     if args.name and args.name[0] == '"' and args.name[-1] == '"':
         args.name = args.name[1:-1]
 
-    if args.billing_pubkey:
-        print('Billing not yet supported in sdl2 bootstrap!')
-        exit(1)
+    if ndk_api != args.min_sdk_version:
+        print(('WARNING: --minsdk argument does not match the api that is '
+               'compiled against. Only proceed if you know what you are '
+               'doing, otherwise use --minsdk={} or recompile against api '
+               '{}').format(ndk_api, args.min_sdk_version))
+        if not args.allow_minsdk_ndkapi_mismatch:
+            print('You must pass --allow-minsdk-ndkapi-mismatch to build '
+                  'with --minsdk different to the target NDK api from the '
+                  'build step')
+            exit(1)
+        else:
+            print('Proceeding with --minsdk not matching build target api')
 
     if args.sdk_version == -1:
-        args.sdk_version = args.min_sdk_version
+        print('WARNING: Received a --sdk argument, but this argument is '
+              'deprecated and does nothing.')
 
     if args.permissions is None:
         args.permissions = []

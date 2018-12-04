@@ -74,14 +74,18 @@ int main(int argc, char *argv[]) {
   int ret = 0;
   FILE *fd;
 
-  /* AND: Several filepaths are hardcoded here, these must be made
-     configurable */
-  /* AND: P4A uses env vars...not sure what's best */
-  LOGP("Initialize Python for Android");
+  setenv("P4A_BOOTSTRAP", "WEBVIEW", 1);  // env var to identify p4a to applications
+
+  LOGP("Initializing Python for Android");
   env_argument = getenv("ANDROID_ARGUMENT");
   setenv("ANDROID_APP_PATH", env_argument, 1);
   env_entrypoint = getenv("ANDROID_ENTRYPOINT");
   env_logname = getenv("PYTHON_NAME");
+
+  if (!getenv("ANDROID_UNPACK")) {
+    /* ANDROID_UNPACK currently isn't set in services */
+    setenv("ANDROID_UNPACK", env_argument, 1);
+  }
   
   if (env_logname == NULL) {
     env_logname = "python";
@@ -102,34 +106,52 @@ int main(int argc, char *argv[]) {
 
   LOGP("Preparing to initialize python");
 
-  if (dir_exists("crystax_python/")) {
-    LOGP("crystax_python exists");
-    char paths[256];
-    snprintf(paths, 256,
-             "%s/crystax_python/stdlib.zip:%s/crystax_python/modules",
-             env_argument, env_argument);
-    /* snprintf(paths, 256, "%s/stdlib.zip:%s/modules", env_argument,
-     * env_argument); */
+  // Set up the python path
+  char paths[256];
+
+  char crystax_python_dir[256];
+  snprintf(crystax_python_dir, 256,
+           "%s/crystax_python", getenv("ANDROID_UNPACK"));
+  char python_bundle_dir[256];
+  snprintf(python_bundle_dir, 256,
+           "%s/_python_bundle", getenv("ANDROID_UNPACK"));
+  if (dir_exists(crystax_python_dir) || dir_exists(python_bundle_dir)) {
+    if (dir_exists(crystax_python_dir)) {
+        LOGP("crystax_python exists");
+        snprintf(paths, 256,
+                "%s/stdlib.zip:%s/modules",
+                crystax_python_dir, crystax_python_dir);
+    }
+
+    if (dir_exists(python_bundle_dir)) {
+        LOGP("_python_bundle dir exists");
+        snprintf(paths, 256,
+                "%s/stdlib.zip:%s/modules",
+                python_bundle_dir, python_bundle_dir);
+    }
+
     LOGP("calculated paths to be...");
     LOGP(paths);
 
-#if PY_MAJOR_VERSION >= 3
-    wchar_t *wchar_paths = Py_DecodeLocale(paths, NULL);
-    Py_SetPath(wchar_paths);
-#else
-    char *wchar_paths = paths;
-    LOGP("Can't Py_SetPath in python2, so crystax python2 doesn't work yet");
-    exit(1);
-#endif
+    #if PY_MAJOR_VERSION >= 3
+        wchar_t *wchar_paths = Py_DecodeLocale(paths, NULL);
+        Py_SetPath(wchar_paths);
+    #endif
 
-    LOGP("set wchar paths...");
+        LOGP("set wchar paths...");
   } else {
-    LOGP("crystax_python does not exist");
+      // We do not expect to see crystax_python any more, so no point
+      // reminding the user about it. If it does exist, we'll have
+      // logged it earlier.
+      LOGP("_python_bundle does not exist");
   }
 
   Py_Initialize();
 
 #if PY_MAJOR_VERSION < 3
+  // Can't Py_SetPath in python2 but we can set PySys_SetPath, which must
+  // be applied after Py_Initialize rather than before like Py_SetPath
+  PySys_SetPath(paths);
   PySys_SetArgv(argc, argv);
 #endif
 
@@ -151,24 +173,25 @@ int main(int argc, char *argv[]) {
    * replace sys.path with our path
    */
   PyRun_SimpleString("import sys, posix\n");
-  if (dir_exists("lib")) {
-    /* If we built our own python, set up the paths correctly */
-    LOGP("Setting up python from ANDROID_PRIVATE");
-    PyRun_SimpleString("private = posix.environ['ANDROID_PRIVATE']\n"
-                       "argument = posix.environ['ANDROID_ARGUMENT']\n"
-                       "sys.path[:] = [ \n"
-                       "    private + '/lib/python27.zip', \n"
-                       "    private + '/lib/python2.7/', \n"
-                       "    private + '/lib/python2.7/lib-dynload/', \n"
-                       "    private + '/lib/python2.7/site-packages/', \n"
-                       "    argument ]\n");
+
+  char add_site_packages_dir[256];
+  if (dir_exists(crystax_python_dir)) {
+    snprintf(add_site_packages_dir, 256,
+             "sys.path.append('%s/site-packages')",
+             crystax_python_dir);
+
+    PyRun_SimpleString("import sys\n"
+                       "sys.argv = ['notaninterpreterreally']\n"
+                       "from os.path import realpath, join, dirname");
+    PyRun_SimpleString(add_site_packages_dir);
+    /* "sys.path.append(join(dirname(realpath(__file__)), 'site-packages'))") */
+    PyRun_SimpleString("sys.path = ['.'] + sys.path");
   }
 
-  if (dir_exists("crystax_python")) {
-    char add_site_packages_dir[256];
+  if (dir_exists(python_bundle_dir)) {
     snprintf(add_site_packages_dir, 256,
-             "sys.path.append('%s/crystax_python/site-packages')",
-             env_argument);
+             "sys.path.append('%s/site-packages')",
+             python_bundle_dir);
 
     PyRun_SimpleString("import sys\n"
                        "sys.argv = ['notaninterpreterreally']\n"
@@ -306,6 +329,7 @@ JNIEXPORT void JNICALL Java_org_kivy_android_PythonService_nativeStart(
   setenv("PYTHONHOME", python_home, 1);
   setenv("PYTHONPATH", python_path, 1);
   setenv("PYTHON_SERVICE_ARGUMENT", arg, 1);
+  setenv("P4A_BOOTSTRAP", "WEBVIEW", 1);
 
   char *argv[] = {"."};
   /* ANDROID_ARGUMENT points to service subdir,
@@ -317,9 +341,6 @@ JNIEXPORT void JNICALL Java_org_kivy_android_PythonService_nativeStart(
 void Java_org_kivy_android_PythonActivity_nativeSetEnv(
                                     JNIEnv* env, jclass jcls,
                                     jstring j_name, jstring j_value)
-/* JNIEXPORT void JNICALL Java_org_libsdl_app_SDLActivity_nativeSetEnv( */
-/*                                     JNIEnv* env, jclass jcls, */
-/*                                     jstring j_name, jstring j_value) */
 {
     jboolean iscopy;
     const char *name = (*env)->GetStringUTFChars(env, j_name, &iscopy);
@@ -334,7 +355,7 @@ void Java_org_kivy_android_PythonActivity_nativeInit(JNIEnv* env, jclass cls, jo
 {
   /* This nativeInit follows SDL2 */
 
-  /* This interface could expand with ABI negotiation, calbacks, etc. */
+  /* This interface could expand with ABI negotiation, callbacks, etc. */
   /* SDL_Android_Init(env, cls); */
   
   /* SDL_SetMainReady(); */
