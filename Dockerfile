@@ -46,7 +46,7 @@ RUN curl --location --progress-bar --insecure \
 ENV ANDROID_SDK_HOME="${ANDROID_HOME}/android-sdk"
 
 # get the latest version from https://developer.android.com/studio/index.html
-ENV ANDROID_SDK_TOOLS_VERSION="3859397"
+ENV ANDROID_SDK_TOOLS_VERSION="4333796"
 ENV ANDROID_SDK_TOOLS_ARCHIVE="sdk-tools-linux-${ANDROID_SDK_TOOLS_VERSION}.zip"
 ENV ANDROID_SDK_TOOLS_DL_URL="https://dl.google.com/android/repository/${ANDROID_SDK_TOOLS_ARCHIVE}"
 
@@ -71,9 +71,9 @@ RUN apt -y update -qq \
 RUN yes | "${ANDROID_SDK_HOME}/tools/bin/sdkmanager" --licenses > /dev/null
 
 # download platforms, API, build tools
-RUN "${ANDROID_SDK_HOME}/tools/bin/sdkmanager" "platforms;android-19" && \
+RUN "${ANDROID_SDK_HOME}/tools/bin/sdkmanager" "platforms;android-21" && \
     "${ANDROID_SDK_HOME}/tools/bin/sdkmanager" "platforms;android-27" && \
-    "${ANDROID_SDK_HOME}/tools/bin/sdkmanager" "build-tools;26.0.2" && \
+    "${ANDROID_SDK_HOME}/tools/bin/sdkmanager" "build-tools;28.0.3" && \
     chmod +x "${ANDROID_SDK_HOME}/tools/bin/avdmanager"
 
 
@@ -89,7 +89,7 @@ RUN apt -y update -qq \
     && apt -y autoremove \
     && apt -y clean
 
-# build dependencies
+# build dependencies based on
 # https://buildozer.readthedocs.io/en/latest/installation.html#android-on-ubuntu-16-04-64bit
 RUN dpkg --add-architecture i386 \
     && apt -y update -qq \
