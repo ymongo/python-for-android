@@ -4,11 +4,10 @@
 ## from http://stackoverflow.com/questions/26082444/how-to-work-around-travis-cis-4mb-output-limit
 set -e
 
-export PING_SLEEP=30s
+export PING_SLEEP=10s
 export WORKDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export BUILD_OUTPUT=${WORKDIR}/build.out
 export MATRIX_COMMAND=$1
-JOB_MSG="Building"
 
 touch ${BUILD_OUTPUT}
 
@@ -22,23 +21,40 @@ error_handler() {
   kill ${PING_LOOP_PID}
   exit 1
 }
-current_job() {
-  echo ${JOB_MSG}
-}
-my_current_job="$(current_job)"
+
 # If an error occurs, run our error handler to output a tail of the build
 trap 'error_handler' ERR
 
 # Set up a repeating loop to send some output to Travis.
-
-bash -c "while true; do echo \$(date) - "$my_current_job" ...; sleep $PING_SLEEP; done" &
-PING_LOOP_PID=$!
+export JOB_MSG="Preparing build"
+echo $(date) - ${JOB_MSG}...;
+#echo 'Preparing build' >/dev/shm/JOB_MSG
+#bash -c "while true; do echo \$(date) - \$(</dev/shm/JOB_MSG)...; sleep $PING_SLEEP; done" &
+#PING_LOOP_PID=$!
 
 # My build is using docker, but you could build anything with this, E.g.
-JOB_MSG="Building docker image and dependencies"
-docker build --tag=p4a .  >> ${BUILD_OUTPUT} 2>&1
-JOB_MSG="Performing p4a build"
-docker run p4a /bin/sh -c "$MATRIX_COMMAND"  >> ${BUILD_OUTPUT} 2>&1
+export JOB_MSG="Building docker image and dependencies"
+#echo 'Building docker image and dependencies' >/dev/shm/JOB_MSG
+while read -r output
+do
+    export BUILD_OUTPUT="${output}"
+    echo "$(date) - ${JOB_MSG}..."
+#    echo $(date) - $(</dev/shm/JOB_MSG)...;
+    sleep ${PING_SLEEP};
+done  < <($(docker build --tag=p4a .)) &
+PING_LOOP_PID=$!
+#docker build --tag=p4a .  >> ${BUILD_OUTPUT} 2>&1
+
+export JOB_MSG="Performing p4a build"
+#echo "Building docker image and dependencies" >/dev/shm/JOB_MSG
+while read -r output
+do
+    echo $(date) - ${JOB_MSG}...
+    export BUILD_OUTPUT="${output}"
+#    echo $(date) - $(</dev/shm/JOB_MSG)...
+    sleep ${PING_SLEEP}
+done  < <($(edocker run p4a /bin/sh -c "${MATRIX_COMMAND}")) &
+PING_LOOP_PID=$!
 
 # The build finished without returning an error so dump a tail of the output
 dump_output
