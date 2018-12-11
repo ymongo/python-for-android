@@ -15,7 +15,7 @@
 #     Use 'docker run' without '--rm' flag for keeping the container and use
 #     'docker commit <container hash> <new image>' to extend the original image
 
-FROM ubuntu:18.04
+FROM python:3.7-stretch
 
 ENV ANDROID_HOME="/opt/android"
 
@@ -107,6 +107,22 @@ RUN apt -y update -qq \
         libffi-dev autoconf automake cmake gettext libltdl-dev libtool pkg-config \
     && apt -y autoremove \
     && apt -y clean
+
+# specific python-3.7 dependencies (e.g. libffi requires autoreconf binary)
+#RUN apt -y update -qq \
+#    && apt -y install -qq libreadline-gplv2-dev libncursesw5-dev libssl-dev \
+#    libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev zlib1g-dev openssl \
+#    python3-setuptools \
+#    && apt -y autoremove \
+#    && apt -y clean
+
+# Pull down Python 3.7, build, and install
+#RUN mkdir /tmp/Python37 && cd /tmp/Python37 \
+#    && wget https://www.python.org/ftp/python/3.7.1/Python-3.7.1.tar.xz \
+#    && tar xvf Python-3.7.1.tar.xz \
+#    && cd /tmp/Python37/Python-3.7.1 \
+#    && ./configure \
+#    && sudo make altinstall
 
 
 # prepare non root env
