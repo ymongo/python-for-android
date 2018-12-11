@@ -1,4 +1,3 @@
-import os
 from pythonforandroid.recipe import CythonRecipe
 
 
