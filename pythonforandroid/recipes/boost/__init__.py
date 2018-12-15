@@ -32,6 +32,7 @@ class BoostRecipe(Recipe):
     patches = ['disable-so-version.patch',
                'use-android-libs.patch',
                'fix-android-issues.patch']
+    hide_unpack_log = True
 
     @property
     def versioned_url(self):
