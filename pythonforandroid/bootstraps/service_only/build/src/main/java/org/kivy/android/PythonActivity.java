@@ -172,6 +172,15 @@ public class PythonActivity extends Activity {
 
     }
 
+    @Override
+    public void onDestroy() {
+        Log.i("Destroy", "end of app");
+        super.onDestroy();
+
+        // make sure all child threads (python_thread) are stopped
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
+
     public void loadLibraries() {
         PythonUtil.loadLibraries(this);
     }
