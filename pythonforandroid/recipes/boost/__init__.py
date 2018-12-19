@@ -13,6 +13,7 @@ class BoostRecipe(Recipe):
     # Don't forget to change the URL when changing the version
     url = 'http://downloads.sourceforge.net/project/boost/boost/{version}/boost_1_60_0.tar.bz2'
     depends = ['python2']
+    stl_depends = 'gnustl_shared'
     patches = ['disable-so-version.patch', 'use-android-libs.patch']
 
     def should_build(self, arch):
