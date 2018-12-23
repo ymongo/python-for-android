@@ -2,6 +2,7 @@ from pythonforandroid.recipe import TargetPythonRecipe, Recipe
 from pythonforandroid.toolchain import shprint, current_directory, info
 from pythonforandroid.patching import (is_darwin, is_api_gt,
                                        check_all, is_api_lt, is_ndk)
+from multiprocessing import cpu_count
 from os.path import exists, join, realpath
 from os import walk
 import glob
@@ -11,13 +12,6 @@ EXCLUDE_EXTS = (".py", ".pyc", ".so.o", ".so.a", ".so.libs", ".pyx")
 
 
 class Python2LegacyRecipe(TargetPythonRecipe):
-    '''
-    .. warning:: This python2 recipe is the original one created by @tito and,
-        for now, it is unusable.
-
-    .. versionchanged:: 0.6.0
-        This was the original python2's recipe moved to python2legacy.
-    '''
     version = "2.7.2"
     url = 'https://python.org/ftp/python/{version}/Python-{version}.tar.bz2'
     name = 'python2legacy'
@@ -129,7 +123,8 @@ class Python2LegacyRecipe(TargetPythonRecipe):
             make = sh.Command(env['MAKE'].split(' ')[0])
             print('First install (expected to fail...')
             try:
-                shprint(make, '-j5', 'install', 'HOSTPYTHON={}'.format(hostpython),
+                shprint(make, '-j' + str(cpu_count()), 'install',
+                        'HOSTPYTHON={}'.format(hostpython),
                         'HOSTPGEN={}'.format(hostpgen),
                         'CROSS_COMPILE_TARGET=yes',
                         'INSTSONAME=libpython2.7.so',
@@ -139,7 +134,8 @@ class Python2LegacyRecipe(TargetPythonRecipe):
 
             print('Second install (expected to work)')
             shprint(sh.touch, 'python.exe', 'python')
-            shprint(make, '-j5', 'install', 'HOSTPYTHON={}'.format(hostpython),
+            shprint(make, '-j' + str(cpu_count()), 'install',
+                    'HOSTPYTHON={}'.format(hostpython),
                     'HOSTPGEN={}'.format(hostpgen),
                     'CROSS_COMPILE_TARGET=yes',
                     'INSTSONAME=libpython2.7.so',
@@ -159,6 +155,19 @@ class Python2LegacyRecipe(TargetPythonRecipe):
                              'curses'):
                 shprint(sh.rm, '-rf', join('python-install',
                                            'lib', 'python2.7', dir_name))
+
+    def create_python_install(self, dist_dir):
+        hostpython = sh.Command(self.ctx.hostpython)
+        install_dir = self.ctx.get_python_install_dir()
+        with current_directory(dist_dir):
+            try:
+                shprint(hostpython, '-OO', '-m', 'compileall',
+                        install_dir,
+                        _tail=10, _filterout="^Listing")
+            except sh.ErrorReturnCode:
+                pass
+            if not exists('python-install'):
+                shprint(sh.cp, '-a', install_dir, './python-install')
 
     def create_python_bundle(self, dirn, arch):
         info("Filling private directory")
