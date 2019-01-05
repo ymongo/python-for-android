@@ -3,7 +3,7 @@ from distutils.core import setup
 from setuptools import find_packages
 
 options = {'apk': {'requirements': 'libffi,openssl,sqlite3,requests,peewee,'
-                                   'sdl2,pyjnius,kivy,python3',
+                                   'sdl2,pyjnius,kivy,python3,libtorrent',
                    'android-api': 27,
                    'ndk-api': 21,
                    'dist-name': 'bdisttest_python3_sqlite_openssl_googlendk',

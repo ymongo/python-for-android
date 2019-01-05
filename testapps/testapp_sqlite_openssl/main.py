@@ -31,6 +31,12 @@ import peewee
 import requests
 import sqlite3
 
+# Initial test of libtorrent import
+try:
+    import libtorrent as lt
+    print('libtorrent version is: {}'.format(lt.version))
+except Exception as e:
+    print('libtorrent import error: {}'.format(e))
 
 try:
     inclemnet = requests.get('http://inclem.net/')
@@ -144,8 +150,8 @@ ScrollView:
             text: 'test ctypes'
             on_press: app.test_ctypes()
         FixedSizeButton:
-            text: 'test numpy'
-            on_press: app.test_numpy()
+            text: 'test libtorrent import'
+            on_press: app.test_libtorrent()
         Widget:
             size_hint_y: None
             height: 1000
@@ -211,12 +217,12 @@ class TestApp(App):
     def test_ctypes(self, *args):
         import ctypes
             
-    def test_numpy(self, *args):
-        import numpy
-
-        print(numpy.zeros(5))
-        print(numpy.arange(5))
-        print(numpy.random.random((3, 3)))
+    def test_libtorrent(self, *args):
+        try:
+            import libtorrent as lt
+            print('libtorrent version is: {}'.format(lt.version))
+        except Exception as e:
+            print('libtorrent import error: {}'.format(e))
                     
 
 TestApp().run()
