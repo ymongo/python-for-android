@@ -35,7 +35,7 @@ public class PythonUtil {
         File libsDir = new File(libsDirPath);
 
         ArrayList<String> libsList = new ArrayList<String>();
-        addLibraryIfExists(libsList, "crystax", libsDir);
+        /*addLibraryIfExists(libsList, "crystax", libsDir);
         addLibraryIfExists(libsList, "sqlite3", libsDir);
         addLibraryIfExists(libsList, "ffi", libsDir);
         libsList.add("SDL2");
@@ -43,7 +43,7 @@ public class PythonUtil {
         libsList.add("SDL2_mixer");
         libsList.add("SDL2_ttf");
         addLibraryIfExists(libsList, "ssl.*", libsDir);
-        addLibraryIfExists(libsList, "crypto.*", libsDir);
+        addLibraryIfExists(libsList, "crypto.*", libsDir);*/
         libsList.add("python2.7");
         libsList.add("python3.5m");
         libsList.add("python3.6m");
